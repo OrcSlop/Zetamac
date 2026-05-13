@@ -1,0 +1,283 @@
+/* --- Global Resets & Centering --- */
+html, body, #root {
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* --- Force Light Mode on Inputs --- */
+input[type="number"],
+input[type="text"],
+select,
+textarea {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #999;
+  outline: none;
+}
+
+/* --- Hide Number Input Spinners --- */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* --- Menu Screen --- */
+#menu-container {
+  width: 480px;
+  background-color: #f0f0f0; 
+  padding: 25px 30px 60px 30px; 
+  box-sizing: border-box;
+  border: 1px solid #cccccc;
+  position: relative;
+  text-align: left; 
+  color: #000;
+}
+
+#menu-container h1 {
+  font-size: 22px;
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #000;
+  font-weight: bold;
+}
+
+.description, .contact {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #000;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.contact a {
+  color: #0000ee; 
+  text-decoration: none;
+}
+
+.contact a:hover {
+  text-decoration: underline;
+}
+
+/* --- Form Options --- */
+.option-group {
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.option-group input[type="checkbox"] {
+  margin: 0 6px 0 0;
+  cursor: pointer;
+}
+
+.option-text {
+  font-size: 13px;
+  color: #000;
+}
+
+.range-options {
+  font-size: 13px;
+  margin-left: 20px;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  color: #000;
+}
+
+.range-options input[type="number"] {
+  width: 35px;
+  height: 18px;
+  text-align: center;
+  font-size: 13px;
+  margin: 0 4px;
+}
+
+.duration-group {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: #000;
+}
+
+.duration-group select {
+  margin-left: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 1px;
+}
+
+.divider {
+  border-top: 1px solid #d4d4d4;
+  margin: 15px 0;
+}
+
+.save-group {
+  display: flex;
+  align-items: center;
+}
+
+.save-group input[type="checkbox"] {
+  margin: 0 6px 0 0;
+}
+
+#start-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 30px;
+  padding: 3px 15px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  background-color: #f4f4f4 !important;
+  border: 1px solid #888;
+  color: #000 !important;
+}
+
+#start-btn:hover {
+  background-color: #e0e0e0 !important;
+}
+
+/* --- Game Screen --- */
+#game-container {
+  position: fixed; /* Ensures it locks to the whole window */
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #ffffff;
+}
+
+.hud {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  padding: 0 40px; /* Brings text slightly inward from the absolute edge */
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  font-size: 20px;
+  color: #000;
+}
+
+#problem-area {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  transform: translateY(-50%);
+  background-color: #eeeeee; 
+  padding: 30px 0; /* Slightly thicker gray bar like the original */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#problem-text {
+  margin-right: 15px;
+  font-size: 48px; 
+  color: #000;
+}
+
+#answer-input {
+  width: 180px;
+  height: 55px;
+  font-size: 48px; 
+  font-family: Arial, sans-serif;
+  text-align: center;
+  /* Specific override to guarantee white background in game mode */
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #333 !important; 
+}
+
+#answer-input:focus {
+  border: 2px solid #000 !important;
+}
+
+/* --- Result Screen --- */
+#result-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 500px;
+  background-color: #f0f0f0;
+  padding: 30px;
+  box-sizing: border-box;
+  border: 1px solid #cccccc;
+  color: #000;
+}
+
+#result-screen h2 {
+  font-size: 24px;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+#result-screen p {
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+
+.csv-container {
+  width: 100%;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.csv-container label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+#csv-output {
+  width: 100%;
+  height: 120px;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  padding: 8px;
+  box-sizing: border-box;
+  resize: none;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.action-buttons button {
+  padding: 5px 15px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  background-color: #f4f4f4 !important;
+  border: 1px solid #888;
+  color: #000 !important;
+}
+
+.action-buttons button:hover {
+  background-color: #e0e0e0 !important;
+}
