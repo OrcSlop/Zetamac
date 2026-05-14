@@ -148,7 +148,8 @@ const App = () => {
   const generateTSVContent = () => {
     let tsvString = "Problem\tCorrect Answer\tTime Spent (Seconds)\n";
     problemLog.forEach((log) => {
-      tsvString += `${log.problem}\t${log.answer}\t${log.time}\n`;
+      // Prepend an apostrophe to the problem string for Excel/Sheets compatibility
+      tsvString += `'${log.problem}\t${log.answer}\t${log.time}\n`;
     });
     return tsvString;
   };
@@ -156,7 +157,8 @@ const App = () => {
   const generateCSVContent = () => {
     let csvString = "Problem,Correct Answer,Time Spent (Seconds)\n";
     problemLog.forEach((log) => {
-      csvString += `${log.problem},${log.answer},${log.time}\n`;
+      // Prepend an apostrophe to the problem string for Excel/Sheets compatibility
+      csvString += `'${log.problem},${log.answer},${log.time}\n`;
     });
     return csvString;
   };
