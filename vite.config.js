@@ -5,4 +5,8 @@ import {defineConfig} from 'vite'
 export default defineConfig({
     plugins: [react()],
     base: './',  // Tells Vite to use relative paths for the file:// protocol
+    server: {
+        port: 5173,
+        strictPort: true,  // Fail instead of silently moving to another port
+    },
 })

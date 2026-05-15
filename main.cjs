@@ -18,8 +18,10 @@ function createWindow() {
     // Tip: Uncomment the line below if you ever need to see the console for errors!
     // win.webContents.openDevTools();
 
-    const startUrl =
-        process.env.ELECTRON_START_URL || `file://${path.join(__dirname, './dist/index.html')}`;
+    const isDev = process.env.ELECTRON_START_URL || !require('fs').existsSync(path.join(__dirname, 'dist', 'index.html'));
+    const startUrl = isDev
+        ? (process.env.ELECTRON_START_URL || 'http://localhost:5173')
+        : `file://${path.join(__dirname, './dist/index.html')}`;
     win.loadURL(startUrl);
 }
 
@@ -39,6 +41,32 @@ ipcMain.on('save-csv', (event, filename, content) => {
         console.log('Successfully saved to:', filePath);
     } catch (error) {
         console.error('Failed to save file:', error);
+    }
+});
+
+// Return a list of all saved CSV filenames
+ipcMain.handle('list-csvs', () => {
+    try {
+        const docsPath = path.join(os.homedir(), 'Documents', 'ZetamacResults');
+        if (!fs.existsSync(docsPath)) return [];
+        return fs.readdirSync(docsPath)
+            .filter(f => f.endsWith('.csv'))
+            .sort()
+            .reverse(); // newest first
+    } catch (e) {
+        console.error('Failed to list CSVs:', e);
+        return [];
+    }
+});
+
+// Read and return the contents of a specific CSV file
+ipcMain.handle('read-csv', (event, filename) => {
+    try {
+        const filePath = path.join(os.homedir(), 'Documents', 'ZetamacResults', filename);
+        return fs.readFileSync(filePath, 'utf-8');
+    } catch (e) {
+        console.error('Failed to read CSV:', e);
+        return null;
     }
 });
 
