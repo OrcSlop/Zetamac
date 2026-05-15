@@ -1,0 +1,581 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+		]
+	},
+	"buffers":
+	[
+		{
+			"contents": "import React, { useState, useEffect, useRef, useCallback } from 'react';\nimport './App.css';\n\nconst App = () => {\n  const [gameState, setGameState] = useState('menu');\n\n  const [settings, setSettings] = useState({\n    add: true, addMin1: 2, addMax1: 100, addMin2: 2, addMax2: 100,\n    sub: true,\n    mul: true, mulMin1: 2, mulMax1: 12, mulMin2: 2, mulMax2: 100,\n    div: true,\n    duration: 120,\n    autosave: true\n  });\n\n  const [score, setScore] = useState(0);\n  const [timeRemaining, setTimeRemaining] = useState(120);\n  const [currentProblem, setCurrentProblem] = useState('');\n  const [currentAnswer, setCurrentAnswer] = useState(null);\n  const [inputValue, setInputValue] = useState('');\n  const [problemLog, setProblemLog] = useState([]);\n  const [copyText, setCopyText] = useState('Copy Data');\n\n  const timerRef = useRef(null);\n  const problemStartTimeRef = useRef(0);\n  const inputRef = useRef(null);\n  const csvOutputRef = useRef(null);\n\n  const handleSettingChange = (e) => {\n    const { id, type, checked, value } = e.target;\n    setSettings((prev) => ({\n      ...prev,\n      [id]: type === 'checkbox' ? checked : parseInt(value) || 0\n    }));\n  };\n\n  const generateProblem = useCallback(() => {\n    const operations = [];\n    if (settings.add) operations.push('add');\n    if (settings.sub) operations.push('sub');\n    if (settings.mul) operations.push('mul');\n    if (settings.div) operations.push('div');\n\n    if (operations.length === 0) return false;\n\n    const op = operations[Math.floor(Math.random() * operations.length)];\n    let probString = \"\";\n    let ans = 0;\n\n    if (op === 'add') {\n      const a = Math.floor(Math.random() * (settings.addMax1 - settings.addMin1 + 1)) + settings.addMin1;\n      const b = Math.floor(Math.random() * (settings.addMax2 - settings.addMin2 + 1)) + settings.addMin2;\n      probString = `${a} + ${b}`;\n      ans = a + b;\n    } else if (op === 'sub') {\n      const a = Math.floor(Math.random() * (settings.addMax1 - settings.addMin1 + 1)) + settings.addMin1;\n      const b = Math.floor(Math.random() * (settings.addMax2 - settings.addMin2 + 1)) + settings.addMin2;\n      probString = `${a + b} - ${a}`;\n      ans = b;\n    } else if (op === 'mul') {\n      const a = Math.floor(Math.random() * (settings.mulMax1 - settings.mulMin1 + 1)) + settings.mulMin1;\n      const b = Math.floor(Math.random() * (settings.mulMax2 - settings.mulMin2 + 1)) + settings.mulMin2;\n      probString = `${a} * ${b}`; // Using correct multiplication symbol like original\n      ans = a * b;\n    } else if (op === 'div') {\n      const a = Math.floor(Math.random() * (settings.mulMax1 - settings.mulMin1 + 1)) + settings.mulMin1;\n      const b = Math.floor(Math.random() * (settings.mulMax2 - settings.mulMin2 + 1)) + settings.mulMin2;\n      probString = `${a * b} / ${a}`;\n      ans = b;\n    }\n\n    setCurrentProblem(probString);\n    setCurrentAnswer(ans);\n    problemStartTimeRef.current = performance.now();\n    return true;\n  }, [settings]);\n\n  const startGame = () => {\n    const operations = [];\n    if (settings.add) operations.push('add');\n    if (settings.sub) operations.push('sub');\n    if (settings.mul) operations.push('mul');\n    if (settings.div) operations.push('div');\n\n    if (operations.length === 0) {\n      alert(\"Please select at least one operation.\");\n      return;\n    }\n\n    setScore(0);\n    setTimeRemaining(settings.duration);\n    setProblemLog([]);\n    setInputValue('');\n    setCopyText('Copy Data');\n\n    if (generateProblem()) {\n      setGameState('playing');\n      const endTime = Date.now() + (settings.duration * 1000);\n      \n      timerRef.current = setInterval(() => {\n        const remaining = Math.ceil((endTime - Date.now()) / 1000);\n        if (remaining <= 0) {\n          endGame();\n        } else {\n          setTimeRemaining(remaining);\n        }\n      }, 100);\n    }\n  };\n\n  const endGame = useCallback(() => {\n    clearInterval(timerRef.current);\n    setTimeRemaining(0);\n    setGameState('result');\n  }, []);\n\n  useEffect(() => {\n    return () => clearInterval(timerRef.current);\n  }, []);\n\n  useEffect(() => {\n    if (gameState === 'playing' && inputRef.current) {\n      inputRef.current.focus();\n    } else if (gameState === 'result' && settings.autosave) {\n      downloadCSV();\n    }\n  // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [gameState, settings.autosave]);\n\n  const handleInputChange = (e) => {\n    const val = e.target.value;\n    setInputValue(val);\n\n    if (parseInt(val) === currentAnswer) {\n      const timeSpentMs = performance.now() - problemStartTimeRef.current;\n      const timeSpentSec = (timeSpentMs / 1000).toFixed(3);\n      \n      setProblemLog((prev) => [\n        ...prev,\n        { problem: currentProblem, answer: currentAnswer, time: timeSpentSec }\n      ]);\n      setScore((prev) => prev + 1);\n      setInputValue('');\n      generateProblem();\n    }\n  };\n\n  const generateTSVContent = () => {\n    let tsvString = \"Problem\\tCorrect Answer\\tTime Spent (Seconds)\\n\";\n    problemLog.forEach((log) => {\n      // Prepend an apostrophe to the problem string for Excel/Sheets compatibility\n      tsvString += `'${log.problem}\\t${log.answer}\\t${log.time}\\n`;\n    });\n    return tsvString;\n  };\n\n  const generateCSVContent = () => {\n    let csvString = \"Problem,Correct Answer,Time Spent (Seconds)\\n\";\n    problemLog.forEach((log) => {\n      // Prepend an apostrophe to the problem string for Excel/Sheets compatibility\n      csvString += `'${log.problem},${log.answer},${log.time}\\n`;\n    });\n    return csvString;\n  };\n\n  const copyData = () => {\n    if (csvOutputRef.current) {\n      csvOutputRef.current.select();\n      document.execCommand('copy');\n      setCopyText('Copied!');\n    }\n  };\n\n  const downloadCSV = () => {\n    if (problemLog.length === 0) return;\n\n    const csvData = generateCSVContent();\n    const dateStr = new Date().toISOString().replace(/[:.]/g, '-');\n    const fileName = `zetamac_${dateStr}.csv`;\n\n    // If running in the Desktop App\n    if (window.electronAPI) {\n      window.electronAPI.saveCSV(fileName, csvData);\n    } \n    // Fallback if running in a normal web browser\n    else {\n      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });\n      const url = URL.createObjectURL(blob);\n      const link = document.createElement(\"a\");\n      link.setAttribute(\"href\", url);\n      link.setAttribute(\"download\", fileName);\n      document.body.appendChild(link);\n      link.click();\n      document.body.removeChild(link);\n      URL.revokeObjectURL(url);\n    }\n  };\n\n  const resetGame = () => {\n    setGameState('menu');\n  };\n\n  return (\n    <>\n      {gameState === 'menu' && (\n        <div id=\"menu-container\">\n          <h1>Arithmetic Game</h1>\n          <p className=\"description\">\n            The Arithmetic Game is a fast-paced speed drill where you are given two minutes\n            to solve as many arithmetic problems as you can.\n          </p>\n          <p className=\"contact\">\n            If you have any questions, please contact <br/><a href=\"#\">arithmetic@zetamac.com</a>.\n          </p>\n\n          <div className=\"option-group\">\n            <input type=\"checkbox\" id=\"add\" checked={settings.add} onChange={handleSettingChange} />\n            <label htmlFor=\"add\" className=\"option-text\">Addition</label>\n          </div>\n          <div className=\"range-options\">\n            Range: ( \n            <input type=\"number\" id=\"addMin1\" value={settings.addMin1} onChange={handleSettingChange} /> to \n            <input type=\"number\" id=\"addMax1\" value={settings.addMax1} onChange={handleSettingChange} /> ) + ( \n            <input type=\"number\" id=\"addMin2\" value={settings.addMin2} onChange={handleSettingChange} /> to \n            <input type=\"number\" id=\"addMax2\" value={settings.addMax2} onChange={handleSettingChange} /> )\n          </div>\n\n          <div className=\"option-group\">\n            <input type=\"checkbox\" id=\"sub\" checked={settings.sub} onChange={handleSettingChange} />\n            <label htmlFor=\"sub\" className=\"option-text\">Subtraction</label>\n          </div>\n          <div className=\"range-options\">\n            Addition problems in reverse.\n          </div>\n\n          <div className=\"option-group\">\n            <input type=\"checkbox\" id=\"mul\" checked={settings.mul} onChange={handleSettingChange} />\n            <label htmlFor=\"mul\" className=\"option-text\">Multiplication</label>\n          </div>\n          <div className=\"range-options\">\n            Range: ( \n            <input type=\"number\" id=\"mulMin1\" value={settings.mulMin1} onChange={handleSettingChange} /> to \n            <input type=\"number\" id=\"mulMax1\" value={settings.mulMax1} onChange={handleSettingChange} /> ) * ( \n            <input type=\"number\" id=\"mulMin2\" value={settings.mulMin2} onChange={handleSettingChange} /> to \n            <input type=\"number\" id=\"mulMax2\" value={settings.mulMax2} onChange={handleSettingChange} /> )\n          </div>\n\n          <div className=\"option-group\">\n            <input type=\"checkbox\" id=\"div\" checked={settings.div} onChange={handleSettingChange} />\n            <label htmlFor=\"div\" className=\"option-text\">Division</label>\n          </div>\n          <div className=\"range-options\">\n            Multiplication problems in reverse.\n          </div>\n\n          <div className=\"duration-group\">\n            Duration: \n            <select id=\"duration\" value={settings.duration} onChange={handleSettingChange}>\n              <option value=\"120\">120 seconds</option>\n            </select>\n          </div>\n\n          {/* Adding the exact horizontal line from the original layout */}\n          <div className=\"divider\"></div>\n\n          <div className=\"save-group\">\n            <input type=\"checkbox\" id=\"autosave\" checked={settings.autosave} onChange={handleSettingChange} />\n            <label htmlFor=\"autosave\" className=\"option-text\">Auto-save results to .csv on completion</label>\n          </div>\n\n          <button id=\"start-btn\" onClick={startGame}>Start</button>\n        </div>\n      )}\n\n      {gameState === 'playing' && (\n        <div id=\"game-container\">\n          <div className=\"hud\">\n            <div>Seconds left: <span id=\"timer-display\">{timeRemaining}</span></div>\n            <div>Score: <span id=\"score-display\">{score}</span></div>\n          </div>\n          <div id=\"problem-area\">\n            <span id=\"problem-text\">{currentProblem} =</span>\n            <input \n              type=\"text\" \n              id=\"answer-input\" \n              autoComplete=\"off\" \n              ref={inputRef}\n              value={inputValue}\n              onChange={handleInputChange}\n            />\n          </div>\n        </div>\n      )}\n\n      {gameState === 'result' && (\n        <div id=\"result-screen\">\n          <h2>Time's Up!</h2>\n          <p>Your score: <strong id=\"final-score\">{score}</strong></p>\n          \n          <div className=\"csv-container\">\n            <label>Raw Data (Paste directly into Sheets):</label>\n            <textarea \n              id=\"csv-output\" \n              readOnly \n              ref={csvOutputRef}\n              value={generateTSVContent()}\n            />\n          </div>\n\n          <div className=\"action-buttons\">\n            <button id=\"copy-csv-btn\" onClick={copyData}>{copyText}</button>\n            <button id=\"download-csv-btn\" onClick={downloadCSV}>Download .CSV</button>\n            <button id=\"play-again-btn\" onClick={resetGame}>Play Again</button>\n          </div>\n        </div>\n      )}\n    </>\n  );\n};\n\nexport default App;\n\n",
+			"file": "src/App.jsx",
+			"file_size": 11474,
+			"file_write_time": 134232471843632691,
+			"settings":
+			{
+				"buffer_size": 11474,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			},
+			"undo_stack":
+			[
+				[
+					57,
+					1,
+					"insert",
+					{
+						"characters": "trou"
+					},
+					"BAAAAIkEAAAAAAAAigQAAAAAAAAAAAAAigQAAAAAAACLBAAAAAAAAAAAAACLBAAAAAAAAIwEAAAAAAAAAAAAAIwEAAAAAAAAjQQAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAiQQAAAAAAACJBAAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					58,
+					4,
+					"left_delete",
+					null,
+					"BAAAAIwEAAAAAAAAjAQAAAAAAAABAAAAdYsEAAAAAAAAiwQAAAAAAAABAAAAb4oEAAAAAAAAigQAAAAAAAABAAAAcokEAAAAAAAAiQQAAAAAAAABAAAAdA",
+					"AQAAAAAAAAABAAAAjQQAAAAAAACNBAAAAAAAAAAAAAAAAPC/"
+				]
+			]
+		},
+		{
+			"contents": "Microsoft Windows [Version 10.0.26200.8246]                           \n(c) Microsoft Corporation. All rights reserved.                       \n                                                                      \nC:\\Users\\Brandon\\Projects\\Zetamac>",
+			"settings":
+			{
+				"buffer_size": 247,
+				"line_ending": "Windows",
+				"name": "Command Prompt",
+				"scratch": true
+			},
+			"undo_stack":
+			[
+				[
+					13,
+					1,
+					"terminus_render",
+					null,
+					"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"
+				],
+				[
+					15,
+					1,
+					"terminus_render",
+					null,
+					"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"
+				],
+				[
+					17,
+					1,
+					"terminus_render",
+					null,
+					"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"
+				],
+				[
+					20,
+					1,
+					"terminus_render",
+					null,
+					"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"
+				]
+			]
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"copilot explai",
+				"Copilot: Explain"
+			],
+			[
+				"term",
+				"Terminus: Open Default Shell in Tab (View)"
+			],
+			[
+				"lsp trou",
+				"LSP: Troubleshoot Server"
+			],
+			[
+				"termi",
+				"Terminus: Open Default Shell in Tab (View)"
+			],
+			[
+				"chat",
+				"Copilot: Chat"
+			],
+			[
+				"lsp rest",
+				"LSP: Restart Server"
+			],
+			[
+				"lsp troubl",
+				"LSP: Troubleshoot Server"
+			],
+			[
+				"lsp",
+				"LSP: Enable Language Server in Project"
+			],
+			[
+				"copilot chat",
+				"Copilot: Chat"
+			],
+			[
+				"copilot",
+				"Copilot: Sign In"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			],
+			[
+				"package",
+				"Package Control: Install Package"
+			],
+			[
+				"lsp:trou",
+				"LSP: Troubleshoot Server"
+			],
+			[
+				"lsptr",
+				"LSP: Troubleshoot Server"
+			],
+			[
+				"lsp:ena",
+				"LSP: Enable Language Server in Project"
+			],
+			[
+				"rename",
+				"File: Rename File"
+			],
+			[
+				"ter",
+				"Terminus: Open Default Shell in Tab (View)"
+			],
+			[
+				"terminus",
+				"Terminus: List Shells"
+			],
+			[
+				"instal",
+				"Package Control: Install Package"
+			],
+			[
+				"switch",
+				"Profiles: Switch"
+			],
+			[
+				"swit",
+				"Profiles: Switch"
+			],
+			[
+				"create",
+				"Profiles: Create"
+			],
+			[
+				"profile",
+				"Profiles: Switch"
+			],
+			[
+				"Package Control: instal",
+				"Package Control: Install Package"
+			],
+			[
+				"pack",
+				"Package Control: Install Package"
+			],
+			[
+				"bracket",
+				"Selection: Expand to Brackets"
+			],
+			[
+				"material theme",
+				"Material Theme: Activate theme"
+			]
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 96.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/C/Users/Brandon/Projects/Zetamac",
+		"/C/Users/Brandon/Projects/Zetamac/src"
+	],
+	"file_history":
+	[
+		"/C/Users/Brandon/AppData/Roaming/Sublime Text/Packages/Restart/Restart.sublime-settings",
+		"/C/Users/Brandon/Projects/Zetamac/src/App.jsx",
+		"/C/Users/Brandon/Projects/Zetamac/App.js",
+		"/C/Users/Brandon/Projects/stratifi/src/pages/SATPrepPage.jsx",
+		"/C/Users/Brandon/Projects/stratifi/src/pages/SATPrep.jsx",
+		"/C/Users/Brandon/Desktop/CompProgramming/out.txt",
+		"/C/Users/Brandon/Desktop/CompProgramming/in.txt",
+		"/C/Users/Brandon/Desktop/CompProgramming/main.cpp",
+		"/C/Users/Brandon/AppData/Roaming/Sublime Text/Packages/User/CP - MSYS2 UCRT64.sublime-build",
+		"/C/Users/Brandon/AppData/Roaming/Sublime Text/Packages/User/clang_format.sublime-settings",
+		"/C/Users/Brandon/AppData/Roaming/Sublime Text/Packages/Clang Format/clang_format_custom.sublime-settings",
+		"/C/Users/Brandon/AppData/Roaming/Sublime Text/Packages/User/clang_format_custom.sublime-settings",
+		"/C/Users/Brandon/AppData/Roaming/Sublime Text/Packages/User/Default (Windows).sublime-keymap",
+		"/C/Users/Brandon/AppData/Roaming/Sublime Text/Packages/User/init.sublime-snippet",
+		"/C/Users/Brandon/AppData/Roaming/Sublime Text/Packages/User/minit.sublime-snippet",
+		"/C/Users/Brandon/Desktop/CompProgramming/output.txt",
+		"/C/Users/Brandon/Desktop/CompProgramming/input.txt"
+	],
+	"find":
+	{
+		"height": 70.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"scrollbar_highlights": true,
+		"show_context": true,
+		"use_buffer2": true,
+		"use_gitignore": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "src/App.jsx",
+					"selected": true,
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 11474,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1268,
+								1268
+							]
+						],
+						"settings":
+						{
+							"auto_complete_triggers":
+							[
+								{
+									"characters": "<",
+									"selector": "text.html, text.xml"
+								},
+								{
+									"rhs_empty": true,
+									"selector": "punctuation.accessor"
+								}
+							],
+							"copilot.completion._is_modified": false,
+							"copilot.completion.is_visible": false,
+							"copilot.completion.is_visible_panel_completions": false,
+							"copilot.completion.is_waiting_completion": false,
+							"copilot.completion.is_waiting_panel_completions": false,
+							"copilot.completion.original_layout": null,
+							"lsp_active": true,
+							"lsp_uri": "file:///C:/Users/Brandon/Projects/Zetamac/src/App.jsx",
+							"syntax": "Packages/JavaScript/JSX.sublime-syntax",
+							"tab_size": 2,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 767.333333333,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"stack_multiselect": false,
+					"type": "text"
+				},
+				{
+					"contents": "<style>\nhtml {\n  --mdpopups-fg: var(--foreground);\n  --mdpopups-link: var(--bluish);\n  --mdpopups-font-mono: \"sf mono\", Consolas, \"Liberation Mono\", Menlo, Courier, monospace;\n  --mdpopups-admon-fg: var(--foreground);\n  --mdpopups-admon-info-fg: var(--foreground);\n  --mdpopups-admon-error-fg: var(--foreground);\n  --mdpopups-admon-warning-fg: var(--foreground);\n  --mdpopups-admon-success-fg: var(--foreground);\n  --mdpopups-admon-bg: var(--background);\n  --mdpopups-admon-info-bg: var(--background);\n  --mdpopups-admon-error-bg: var(--background);\n  --mdpopups-admon-warning-bg: var(--background);\n  --mdpopups-admon-success-bg: var(--background);\n  --mdpopups-admon-accent: color(var(--background) blend(var(--foreground) 50%));\n  --mdpopups-admon-title-fg:  var(--foreground);\n  --mdpopups-admon-info-title-fg:  var(--foreground);\n  --mdpopups-admon-error-title-fg:  var(--foreground);\n  --mdpopups-admon-warning-title-fg:  var(--foreground);\n  --mdpopups-admon-success-title-fg:  var(--foreground);\n  --mdpopups-admon-info-accent: color(var(--background) blend(var(--bluish) 50%));\n  --mdpopups-admon-error-accent: color(var(--background) blend(var(--redish) 50%));\n  --mdpopups-admon-warning-accent: color(var(--background) blend(var(--orangish) 50%));\n  --mdpopups-admon-success-accent: color(var(--background) blend(var(--greenish) 50%));\n  --mdpopups-kbd-fg: var(--background);\n  --mdpopups-kbd-bg: var(--foreground);\n}\nhtml.light {\n  --mdpopups-bg:  var(--background);\n  --mdpopups-hr: color(var(--background) blend(black 85%));\n  --mdpopups-kbd-border: color(var(--foreground) blend(white 80%));\n  --mdpopups-hl-border: color(var(--background) blend(black 90%));\n  --mdpopups-hl-bg: color(var(--background) blend(black 98%));\n  background-color: var(--mdpopups-bg);\n}\nhtml.dark {\n  --mdpopups-bg:  var(--background);\n  --mdpopups-hr: color(var(--background) blend(white 85%));\n  --mdpopups-kbd-border: color(var(--foreground) blend(black 80%));\n  --mdpopups-hl-border: color(var(--background) blend(white 90%));\n  --mdpopups-hl-bg: color(var(--background) blend(white 98%));\n  background-color: var(--mdpopups-bg);\n}\n\nhtml, body { padding: 0; margin: 0; }\ndiv.mdpopups {\n  display: block;\n  margin: 0;\n  padding: 0;\n  font-size: 1rem;\n  line-height: 1.1rem;\n  color: var(--mdpopups-fg);\n  background-color: var(--mdpopups-bg);\n}\n.mdpopups a {\n  color: var(--mdpopups-link);\n}\n.mdpopups .highlight,\n.mdpopups code,\n.mdpopups var,\n.mdpopups tt {\n  font-family: var(--mdpopups-font-mono);\n}\n.mdpopups div { display: block; }\n\n.mdpopups h1 { font-size: 1.5rem; }\n.mdpopups h2 { font-size: 1.4rem; }\n.mdpopups h3 { font-size: 1.3rem; }\n.mdpopups h4 { font-size: 1.2rem; }\n.mdpopups h5 { font-size: 1.1rem; }\n.mdpopups h6 { font-size: 1rem; }\n.mdpopups h1, .mdpopups h2, .mdpopups h3, .mdpopups h4, .mdpopups h5, .mdpopups h6 {\n  margin-top: 0.2rem;\n  margin-bottom: 0.2rem;\n}\n\n.mdpopups blockquote { display: block; font-style: italic; }\n\n.mdpopups hr {\n  display: block;\n  border-color: var(--mdpopups-hr);\n  border-style: solid;\n  border-width: 0 0 1px 0;\n  margin-top: 1rem;\n  margin-bottom: 1rem;\n}\n\n.mdpopups dl { display: block; }\n.mdpopups dt {\n  display: block;\n  font-style: italic;\n  font-weight: bold;\n  margin-bottom: 0.5rem;\n}\n.mdpopups dd {\n  display: block;\n  margin-left: 1.5rem;\n  margin-bottom: 0.5rem;\n}\n\n.mdpopups pre { display: block; }\n\n.mdpopups blockquote, .mdpopups ol, .mdpopups ul, .mdpopups dl, .mdpopups p {\n  padding: 0;\n  margin-top: 0;\n  margin-bottom: 0.5rem;\n  margin-left: 0;\n  margin-right: 0;\n}\n.mdpopups ul, .mdpopups ol { padding-left: 2rem; }\n\n.mdpopups kbd {\n  display: inline;\n  font-size: 0.9rem;\n  padding: 0.05rem 0.25rem;\n  border-radius: 0.25rem;\n  background-color: var(--mdpopups-kbd-bg);\n  color: var(--mdpopups-kbd-fg);\n  border: 1px solid var(--mdpopups-kbd-border);\n}\n\n.mdpopups .admonition {\n  display: block;\n  padding: 0 0.5rem 0.5rem 0.5rem;\n  border-radius: 0.25rem;\n  margin-bottom: 0.5rem;\n  background-color: var(--mdpopups-admon-bg);\n  color: var(--mdpopups-admon-fg);\n  border: 1px solid var(--mdpopups-admon-accent);\n}\n.mdpopups .admonition-title {\n  font-weight: 600;\n  font-size: 1.1rem;\n  margin: 0 -0.5rem 0.5rem -0.5rem;\n  padding: 0.1rem 0.5rem 0.1rem 0.5rem;\n  border-top-left-radius: 0.25rem;\n  border-top-right-radius: 0.25rem;\n  color:  var(--mdpopups-admon-title-fg);\n  background-color: var(--mdpopups-admon-accent);\n}\n\n.mdpopups .admonition.panel-success .admonition-title {\n  color: var(--mdpopups-admon-success-title-fg);\n  background-color: var(--mdpopups-admon-success-accent);\n}\n.mdpopups .admonition.panel-success {\n  color:  var(--mdpopups-admon-success-fg);\n  background-color: var(--mdpopups-admon-success-bg);\n  border-color: var(--mdpopups-admon-success-accent);\n}\n.mdpopups .admonition.panel-warning .admonition-title {\n  color: var(--mdpopups-admon-warning-title-fg);\n  background-color: var(--mdpopups-admon-warning-accent);\n}\n.mdpopups .admonition.panel-warning {\n  color:  var(--mdpopups-admon-warning-fg);\n  background-color: var(--mdpopups-admon-warning-bg);\n  border-color: var(--mdpopups-admon-warning-accent);\n}\n.mdpopups .admonition.panel-error .admonition-title {\n  color: var(--mdpopups-admon-error-title-fg);\n  background-color: var(--mdpopups-admon-error-accent);\n}\n.mdpopups .admonition.panel-error {\n  color:  var(--mdpopups-admon-error-fg);\n  background-color: var(--mdpopups-admon-error-bg);\n  border-color: var(--mdpopups-admon-error-accent);\n}\n.mdpopups .admonition.panel-info .admonition-title {\n  color: var(--mdpopups-admon-info-title-fg);\n  background-color: var(--mdpopups-admon-info-accent);\n}\n.mdpopups .admonition.panel-info {\n  color:  var(--mdpopups-admon-info-fg);\n  background-color: var(--mdpopups-admon-info-bg);\n  border-color: var(--mdpopups-admon-info-accent);\n}\n.mdpopups .highlight {\n  border: 1px solid var(--mdpopups-hl-border);\n  border-radius: 0.25rem;\n  font-size: 0.9rem;\n  background-color: var(--mdpopups-hl-bg);\n}\n.mdpopups div.highlight,\n.mdpopups pre.highlight {\n  padding: 0.5rem;\n  margin-bottom: 0.5rem;\n  font-size: 1rem;\n}\n.mdpopups code.highlight {\n  padding: 0.05rem 0.25rem;\n}\n\n.lsp_sheet {\n    padding: 1rem;\n}\n.lsp_sheet h1 {\n    margin-top: 0;\n    font-family: system;\n}\n.lsp_sheet h2,\n.lsp_sheet h3,\n.lsp_sheet h4,\n.lsp_sheet p {\n    margin-top: 1rem;\n    font-family: system;\n}\n.lsp_sheet li {\n    font-family: system;\n}\n</style><div class=\"mdpopups\"><div class=\"lsp_sheet\"><p><a href='subl:lsp_copy_to_clipboard_from_base64 {\"contents\":\"IyBUcm91Ymxlc2hvb3Rpbmc6IExTUC1jb3BpbG90CiMjIFZlcnNpb24KIC0gTFNQOiAyLjEwLjIKIC0gU3VibGltZSBUZXh0OiA0MjAwCiMjIFNlcnZlciBUZXN0IFJ1bgogLSBleGl0IGNvZGU6IDAKIC0gb3V0cHV0CmBgYAoKYGBgCiMjIFNlcnZlciBDb25maWd1cmF0aW9uCiAtIGNvbW1hbmQKYGBganNvbgpbCiAgIiRzZXJ2ZXJfcGF0aCIsCiAgIi0tc3RkaW8iCl0KYGBgCiAtIHNoZWxsIGNvbW1hbmQKYGBgc2gKIkM6XFVzZXJzXEJyYW5kb25cQXBwRGF0YVxMb2NhbFxTdWJsaW1lIFRleHRcUGFja2FnZSBTdG9yYWdlXExTUC1jb3BpbG90XHYxLjQ3Ni4wXGNvcGlsb3QtbGFuZ3VhZ2Utc2VydmVyLmV4ZSIgLS1zdGRpbwpgYGAKIC0gc2VsZWN0b3IKYGBgCnNvdXJjZSB8IHRleHQgfCBlbWJlZGRpbmcKYGBgCiAtIHByaW9yaXR5X3NlbGVjdG9yCmBgYApzb3VyY2UgfCB0ZXh0IHwgZW1iZWRkaW5nCmBgYAogLSBpbml0X29wdGlvbnMKYGBganNvbgp7CiAgImVkaXRvckluZm8iOiB7CiAgICAibmFtZSI6ICJTdWJsaW1lIFRleHQiLAogICAgInZlcnNpb24iOiAiNDIwMCIKICB9LAogICJlZGl0b3JQbHVnaW5JbmZvIjogewogICAgIm5hbWUiOiAiTFNQLWNvcGlsb3QiLAogICAgInZlcnNpb24iOiAiMC4zLjgiCiAgfQp9CmBgYAogLSBzZXR0aW5ncwpgYGBqc29uCnsKICAiYXV0b19hc2tfY29tcGxldGlvbnMiOiB0cnVlLAogICJjb21taXRfY29tcGxldGlvbl9vbl90YWIiOiB0cnVlLAogICJjb21wbGV0aW9uX3N0eWxlIjogInBvcHVwIiwKICAiZGVidWciOiB0cnVlLAogICJob29rX3RvX2F1dG9fY29tcGxldGVfY29tbWFuZCI6IGZhbHNlLAogICJsb2NhbF9jaGVja3MiOiBmYWxzZSwKICAicHJvbXB0cyI6IFsKICAgIHsKICAgICAgImRlc2NyaXB0aW9uIjogIlJldmlldyBjb2RlIGFuZCBwcm92aWRlIGZlZWRiYWNrLiIsCiAgICAgICJpZCI6ICJyZXZpZXciLAogICAgICAicHJvbXB0IjogWwogICAgICAgICJSZXZpZXcgdGhlIHJlZmVyZW5jZWQgY29kZSBhbmQgcHJvdmlkZSBmZWVkYmFjay4iLAogICAgICAgICJGZWVkYmFjayBzaG91bGQgZmlyc3QgcmVwbHkgYmFjayB3aXRoIHRoZSBsaW5lIG9yIGxpbmVzIG9mIGNvZGUsIGZvbGxvd2VkIGJ5IHRoZSBmZWVkYmFjayBhYm91dCB0aGUgY29kZS4iLAogICAgICAgICJEbyBub3QgaW52ZW50IG5ldyBwcm9ibGVtcy4iLAogICAgICAgICJUaGUgZmVlZGJhY2sgc2hvdWxkIGJlIGNvbnN0cnVjdGl2ZSBhbmQgYWltIHRvIGltcHJvdmUgdGhlIGNvZGUgcXVhbGl0eS4iLAogICAgICAgICJJZiB0aGVyZSBhcmUgbm8gaXNzdWVzIGRldGVjdGVkLCByZXBseSB0aGF0IHRoZSBjb2RlIGxvb2tzIGdvb2QgYW5kIG5vIGNoYW5nZXMgYXJlIG5lY2Vzc2FyeS4iLAogICAgICAgICJHcm91cCByZWxhdGVkIGZlZWRiYWNrIGludG8gYSBzaW5nbGUgY29tbWVudCBpZiBwb3NzaWJsZS4iLAogICAgICAgICJQcmVzZW50IGVhY2ggY29tbWVudCB3aXRoIGEgYnJpZWYgZGVzY3JpcHRpb24gb2YgdGhlIGlzc3VlIGFuZCBhIHN1Z2dlc3Rpb24gZm9yIGltcHJvdmVtZW50LiIsCiAgICAgICAgIlVzZSB0aGUgZm9ybWF0IGBDb21tZW50ICM6IFtkZXNjcmlwdGlvbl0gW3N1Z2dlc3Rpb25dYCBmb3IgZWFjaCBjb21tZW50LCAjIHJlcHJlc2VudGluZyB0aGUgbnVtYmVyIG9mIGNvbW1lbnRzLiIsCiAgICAgICAgIkF0IGxhc3QgcHJvdmlkZSBhIHN1bW1hcnkgb2YgdGhlIG92ZXJhbGwgY29kZSBxdWFsaXR5IGFuZCBhbnkgZ2VuZXJhbCBzdWdnZXN0aW9ucyBmb3IgaW1wcm92ZW1lbnQuIgogICAgICBdCiAgICB9CiAgXSwKICAicHJveHkiOiAiIiwKICAic3RhdHVzX3RleHQiOiAieyUgaWYgaXNfY29waWxvdF9pZ25vcmVkICV9e3sgaXNfY29waWxvdF9pZ25vcmVkIH19eyUgZWxpZiBpc193YWl0aW5nICV9e3sgaXNfd2FpdGluZyB9fXslIGVsaWYgc2VydmVyX3N0YXR1c19raW5kID09ICdJblByb2dyZXNzJyAlfXt7IHNlcnZlcl9zdGF0dXNfbWVzc2FnZSB9fXslIGVsaWYgc2VydmVyX3ZlcnNpb24gJX12e3sgc2VydmVyX3ZlcnNpb24gfX17JSBlbmRpZiAlfSIsCiAgInRlbGVtZXRyeSI6IHsKICAgICJ0ZWxlbWV0cnlMZXZlbCI6IG51bGwKICB9Cn0KYGBgCiAtIGVudgpgYGBqc29uCnt9CmBgYAoKIyMgQWN0aXZlIHZpZXcKIC0gRmlsZSBuYW1lCmBgYApDOlxVc2Vyc1xCcmFuZG9uXFByb2plY3RzXFpldGFtYWNcc3JjXEFwcC5qc3gKYGBgCiAtIFNldHRpbmdzCmBgYGpzb24KewogICJhdXRvX2NvbXBsZXRlX3NlbGVjdG9yIjogIm1ldGEudGFnLCBzb3VyY2UgLSBjb21tZW50IC0gc3RyaW5nLnF1b3RlZC5kb3VibGUuYmxvY2sgLSBzdHJpbmcucXVvdGVkLnNpbmdsZS5ibG9jayAtIHN0cmluZy51bnF1b3RlZC5oZXJlZG9jIiwKICAibHNwX2FjdGl2ZSI6IHRydWUsCiAgInN5bnRheCI6ICJQYWNrYWdlcy9KYXZhU2NyaXB0L0pTWC5zdWJsaW1lLXN5bnRheCIKfQpgYGAKIC0gYmFzZSBzY29wZQpgYGAKc291cmNlLmpzeApgYGAKCiMjIFByb2plY3QgLyBXb3Jrc3BhY2UKIC0gZm9sZGVycwpgYGBqc29uClsKICAiQzpcXFVzZXJzXFxCcmFuZG9uXFxQcm9qZWN0c1xcWmV0YW1hYyIKXQpgYGAKIC0gaXMgcHJvamVjdDogVHJ1ZQogLSBwcm9qZWN0IGRhdGE6CmBgYGpzb24KewogICJmb2xkZXJzIjogWwogICAgewogICAgICAicGF0aCI6ICIuIgogICAgfQogIF0KfQpgYGAKCiMjIExTUCBjb25maWd1cmF0aW9uCgo8bm90IGZvdW5kPgojIyBTeXN0ZW0gUEFUSAogLSBDOlxQeXRob24zMTRcU2NyaXB0c1wKIC0gQzpcUHl0aG9uMzE0XAogLSBDOlxXSU5ET1dTXHN5c3RlbTMyCiAtIEM6XFdJTkRPV1MKIC0gQzpcV0lORE9XU1xTeXN0ZW0zMlxXYmVtCiAtIEM6XFdJTkRPV1NcU3lzdGVtMzJcV2luZG93c1Bvd2VyU2hlbGxcdjEuMFwKIC0gQzpcV0lORE9XU1xTeXN0ZW0zMlxPcGVuU1NIXAogLSBDOlxtc3lzNjRcdWNydDY0XGJpbgogLSBDOlxQcm9ncmFtIEZpbGVzXEdpdFxjbWQKIC0gQzpcUHJvZ3JhbSBGaWxlc1xub2RlanNcCiAtIEM6XFByb2dyYW1EYXRhXGNob2NvbGF0ZXlcYmluCiAtIEM6XFByb2dyYW0gRmlsZXNcQ2FsaWJyZTJcCiAtIEM6XFByb2dyYW0gRmlsZXNcQ2xvdWRmbGFyZVxDbG91ZGZsYXJlIFdBUlBcCiAtIEM6XFVzZXJzXEJyYW5kb25cQXBwRGF0YVxSb2FtaW5nXFB5dGhvblxQeXRob24zMTRcU2NyaXB0cwogLSBDOlxVc2Vyc1xCcmFuZG9uXEFwcERhdGFcTG9jYWxcTWljcm9zb2Z0XFdpbmRvd3NBcHBzCiAtIEM6XFVzZXJzXEJyYW5kb25cQXBwRGF0YVxSb2FtaW5nXG5wbQogLSBDOlxVc2Vyc1xCcmFuZG9uXEFwcERhdGFcUm9hbWluZ1xQeXRob25cUHl0aG9uMzE0XFNjcmlwdHMKIC0g\"}'>&lt;kbd&gt;Copy&nbsp;to&nbsp;clipboard&lt;/kbd&gt;</a></p>\n<h1>Troubleshooting: LSP-copilot</h1>\n<h2>Version</h2>\n<ul>\n<li>LSP: 2.10.2</li>\n<li>Sublime Text: 4200</li>\n</ul>\n<h2>Server Test Run</h2>\n<ul>\n<li>exit code: 0</li>\n<li>output<br />\n<div class=\"highlight\"><pre><br></pre></div></li>\n</ul>\n<h2>Server Configuration</h2>\n<ul>\n<li>command<br />\n<div class=\"highlight\"><pre><span style=\"color: #89ddff;\">[</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">$server_path</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">--stdio</span><span style=\"color: #89ddff;\">\"</span><br><span style=\"color: #eeffff;\"></span><span style=\"color: #89ddff;\">]</span><br></pre></div></li>\n<li>shell command<br />\n<div class=\"highlight\"><pre><span style=\"color: #89ddff;\">\"</span><span style=\"color: #82aaff;\">C:\\Users\\Brandon\\AppData\\Local\\Sublime Text\\Package Storage\\LSP-copilot\\v1.476.0\\copilot-language-server.exe</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #82aaff;\"> </span><span style=\"color: #89ddff;\">--</span><span style=\"color: #f78c6c;\">stdio</span><br></pre></div></li>\n<li>selector<br />\n<div class=\"highlight\"><pre><span style=\"color: #eeffff;\">source | text | embedding</span><br></pre></div></li>\n<li>priority_selector<br />\n<div class=\"highlight\"><pre><span style=\"color: #eeffff;\">source | text | embedding</span><br></pre></div></li>\n<li>init_options<br />\n<div class=\"highlight\"><pre><span style=\"color: #89ddff;\">{</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">editorInfo</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">{</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">name</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">Sublime Text</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">version</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">4200</span><span style=\"color: #89ddff;\">\"</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">}</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">editorPluginInfo</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">{</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">name</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">LSP-copilot</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">version</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">0.3.8</span><span style=\"color: #89ddff;\">\"</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">}</span><br><span style=\"color: #eeffff;\"></span><span style=\"color: #89ddff;\">}</span><br></pre></div></li>\n<li>settings<br />\n<div class=\"highlight\"><pre><span style=\"color: #89ddff;\">{</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">auto_ask_completions</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #f78c6c;\">true</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">commit_completion_on_tab</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #f78c6c;\">true</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">completion_style</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">popup</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">debug</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #f78c6c;\">true</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">hook_to_auto_complete_command</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #f78c6c;\">false</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">local_checks</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #f78c6c;\">false</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">prompts</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">[</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">{</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">description</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">Review code and provide feedback.</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">id</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">review</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">prompt</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">[</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">Review the referenced code and provide feedback.</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">Feedback should first reply back with the line or lines of code, followed by the feedback about the code.</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">Do not invent new problems.</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">The feedback should be constructive and aim to improve the code quality.</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">If there are no issues detected, reply that the code looks good and no changes are necessary.</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">Group related feedback into a single comment if possible.</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">Present each comment with a brief description of the issue and a suggestion for improvement.</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">Use the format `Comment #: [description] [suggestion]` for each comment, # representing the number of comments.</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">At last provide a summary of the overall code quality and any general suggestions for improvement.</span><span style=\"color: #89ddff;\">\"</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">]</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">}</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">]</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">proxy</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">status_text</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">{% if is_copilot_ignored %}{{ is_copilot_ignored }}{% elif is_waiting %}{{ is_waiting }}{% elif server_status_kind == 'InProgress' %}{{ server_status_message }}{% elif server_version %}v{{ server_version }}{% endif %}</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">telemetry</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">{</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">telemetryLevel</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #f78c6c;\">null</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">}</span><br><span style=\"color: #eeffff;\"></span><span style=\"color: #89ddff;\">}</span><br></pre></div></li>\n<li>env<br />\n<div class=\"highlight\"><pre><span style=\"color: #89ddff;\">{</span><span style=\"color: #89ddff;\">}</span><br></pre></div></li>\n</ul>\n<h2>Active view</h2>\n<ul>\n<li>File name<br />\n<div class=\"highlight\"><pre><span style=\"color: #eeffff;\">C:\\Users\\Brandon\\Projects\\Zetamac\\src\\App.jsx</span><br></pre></div></li>\n<li>Settings<br />\n<div class=\"highlight\"><pre><span style=\"color: #89ddff;\">{</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">auto_complete_selector</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">meta.tag, source - comment - string.quoted.double.block - string.quoted.single.block - string.unquoted.heredoc</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">lsp_active</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #f78c6c;\">true</span><span style=\"color: #89ddff;\">,</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">syntax</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">Packages/JavaScript/JSX.sublime-syntax</span><span style=\"color: #89ddff;\">\"</span><br><span style=\"color: #eeffff;\"></span><span style=\"color: #89ddff;\">}</span><br></pre></div></li>\n<li>base scope<br />\n<div class=\"highlight\"><pre><span style=\"color: #eeffff;\">source.jsx</span><br></pre></div></li>\n</ul>\n<h2>Project / Workspace</h2>\n<ul>\n<li>folders<br />\n<div class=\"highlight\"><pre><span style=\"color: #89ddff;\">[</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">C:</span><span style=\"color: #89ddff;\">\\\\</span><span style=\"color: #c3e88d;\">Users</span><span style=\"color: #89ddff;\">\\\\</span><span style=\"color: #c3e88d;\">Brandon</span><span style=\"color: #89ddff;\">\\\\</span><span style=\"color: #c3e88d;\">Projects</span><span style=\"color: #89ddff;\">\\\\</span><span style=\"color: #c3e88d;\">Zetamac</span><span style=\"color: #89ddff;\">\"</span><br><span style=\"color: #eeffff;\"></span><span style=\"color: #89ddff;\">]</span><br></pre></div></li>\n<li>is project: True</li>\n<li>project data:<br />\n<div class=\"highlight\"><pre><span style=\"color: #89ddff;\">{</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">folders</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">[</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">{</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">path</span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #89ddff;\">:</span><span style=\"color: #eeffff;\"> </span><span style=\"color: #89ddff;\">\"</span><span style=\"color: #c3e88d;\">.</span><span style=\"color: #89ddff;\">\"</span><br><span style=\"color: #eeffff;\">&nbsp;&nbsp;&nbsp; </span><span style=\"color: #89ddff;\">}</span><br><span style=\"color: #eeffff;\">&nbsp; </span><span style=\"color: #89ddff;\">]</span><br><span style=\"color: #eeffff;\"></span><span style=\"color: #89ddff;\">}</span><br></pre></div></li>\n</ul>\n<h2>LSP configuration</h2>\n<p><not found></p>\n<h2>System PATH</h2>\n<ul>\n<li>C:\\Python314\\Scripts\\</li>\n<li>C:\\Python314\\</li>\n<li>C:\\WINDOWS\\system32</li>\n<li>C:\\WINDOWS</li>\n<li>C:\\WINDOWS\\System32\\Wbem</li>\n<li>C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\</li>\n<li>C:\\WINDOWS\\System32\\OpenSSH\\</li>\n<li>C:\\msys64\\ucrt64\\bin</li>\n<li>C:\\Program Files\\Git\\cmd</li>\n<li>C:\\Program Files\\nodejs\\</li>\n<li>C:\\ProgramData\\chocolatey\\bin</li>\n<li>C:\\Program Files\\Calibre2\\</li>\n<li>C:\\Program Files\\Cloudflare\\Cloudflare WARP\\</li>\n<li>C:\\Users\\Brandon\\AppData\\Roaming\\Python\\Python314\\Scripts</li>\n<li>C:\\Users\\Brandon\\AppData\\Local\\Microsoft\\WindowsApps</li>\n<li>C:\\Users\\Brandon\\AppData\\Roaming\\npm</li>\n<li>C:\\Users\\Brandon\\AppData\\Roaming\\Python\\Python314\\Scripts</li>\n<li></li>\n</ul></div></div>",
+					"file": "Server: LSP-copilot",
+					"semi_transient": false,
+					"stack_index": 1,
+					"stack_multiselect": false,
+					"type": "html"
+				},
+				{
+					"buffer": 1,
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 247,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								247,
+								247
+							]
+						],
+						"settings":
+						{
+							"__vi_external_disable": true,
+							"auto_complete": false,
+							"auto_complete_commit_on_tab": false,
+							"bracket_highlighter.clone_locations":
+							{
+							},
+							"bracket_highlighter.ignore": true,
+							"color_scheme": "Terminus.hidden-color-scheme",
+							"copilot.completion._is_modified": false,
+							"copilot.completion.is_visible": false,
+							"draw_centered": false,
+							"draw_indent_guides": false,
+							"draw_unicode_white_space": false,
+							"draw_white_space": "none",
+							"gutter": false,
+							"highlight_line": false,
+							"is_widget": true,
+							"lsp_uri": "buffer:138",
+							"result_base_dir": "C:\\Users\\Brandon\\Projects\\Zetamac",
+							"result_file_regex": null,
+							"result_line_regex": null,
+							"rulers":
+							[
+								500
+							],
+							"scroll_past_end": true,
+							"syntax": "Terminus View.sublime-syntax",
+							"terminus_view": true,
+							"terminus_view.args":
+							{
+								"auto_close": true,
+								"cancellable": false,
+								"cmd":
+								[
+									"cmd.exe"
+								],
+								"cwd": "C:\\Users\\Brandon\\Projects\\Zetamac",
+								"default_title": "Command Prompt",
+								"env":
+								{
+									"PROMPT_TOOLKIT_COLOR_DEPTH": "DEPTH_8_BIT",
+									"TERMINUS_SUBLIME": "1",
+									"TERM_PROGRAM": "Terminus-Sublime"
+								},
+								"file_regex": null,
+								"line_regex": null,
+								"panel_name": "Terminus",
+								"reactivable": true,
+								"show_in_panel": null,
+								"tag": null,
+								"timeit": false,
+								"title": null,
+								"view_settings":
+								{
+								}
+							},
+							"terminus_view.cancellable": false,
+							"terminus_view.key.ctrl+k": true,
+							"terminus_view.key.ctrl+p": true,
+							"terminus_view.natural_keyboard": true,
+							"terminus_view.reactivable": true,
+							"terminus_view.tag": null,
+							"terminus_view.viewport_y": 0.0,
+							"word_wrap": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"stack_multiselect": false,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 30.0
+	},
+	"input":
+	{
+		"height": 68.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.LSP Log Panel":
+	{
+		"height": 54.0,
+		"history":
+		[
+		]
+	},
+	"output.diagnostics":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"output.find_results":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"output.mdpopups":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"output.mdpopups-dummy":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"pinned_build_system": "Packages/User/CP - MSYS2 UCRT64.sublime-build",
+	"project": "Zetamac.sublime-project",
+	"replace":
+	{
+		"height": 56.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 499.666666667,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"",
+				"C:\\Users\\Brandon\\Projects\\Zetamac\\Zetamac.sublime-project"
+			]
+		],
+		"width": 378.666666667
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+		"copilot.conversation.code_block_index":
+		{
+		},
+		"copilot.conversation.conversation_entries":
+		[
+		],
+		"copilot.conversation.conversation_id": "",
+		"copilot.conversation.follow_up": "",
+		"copilot.conversation.group_id": -1,
+		"copilot.conversation.is_visible": false,
+		"copilot.conversation.is_waiting": false,
+		"copilot.conversation.last_active_view_id": 13,
+		"copilot.conversation.original_layout": null,
+		"copilot.conversation.reference_block_state":
+		{
+		},
+		"copilot.conversation.suggested_title": "",
+		"copilot.conversation.view_id": -1,
+		"copilot.copilotignore.patterns":
+		{
+		},
+		"lsp_show_inlay_hints": false
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 204.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

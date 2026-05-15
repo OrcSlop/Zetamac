@@ -475,19 +475,19 @@ function LeaderboardTable({ allRows }) {
               <th className="sortable" onClick={() => toggleSort('problem')}>
                 Problem{arrow('problem')}
               </th>
-              <th className="sortable" style={{ textAlign: 'center' }} onClick={() => toggleSort('answer')}>
+              <th className="sortable" onClick={() => toggleSort('answer')}>
                 Answer{arrow('answer')}
               </th>
-              <th className="sortable" style={{ textAlign: 'center' }} onClick={() => toggleSort('count')}>
+              <th className="sortable" onClick={() => toggleSort('count')}>
                 Seen{arrow('count')}
               </th>
-              <th className="sortable" style={{ textAlign: 'right' }} onClick={() => toggleSort('avgTime')}>
+              <th className="sortable" onClick={() => toggleSort('avgTime')}>
                 Avg Time{arrow('avgTime')}
               </th>
-              <th className="sortable" style={{ textAlign: 'right' }} onClick={() => toggleSort('bestTime')}>
+              <th className="sortable" onClick={() => toggleSort('bestTime')}>
                 Best{arrow('bestTime')}
               </th>
-              <th className="sortable" style={{ textAlign: 'right' }} onClick={() => toggleSort('worstTime')}>
+              <th className="sortable" onClick={() => toggleSort('worstTime')}>
                 Worst{arrow('worstTime')}
               </th>
             </tr>

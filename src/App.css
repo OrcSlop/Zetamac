@@ -138,9 +138,6 @@ input[type=number] {
 }
 
 #start-btn {
-  position: absolute;
-  bottom: 20px;
-  right: 30px;
   padding: 3px 15px;
   font-size: 13px;
   font-family: inherit;
@@ -361,7 +358,7 @@ input[type=number] {
   background: #e8e8e8;
   border-bottom: 1px solid #bbb;
   padding: 5px 8px;
-  text-align: left;
+  text-align: center;
   position: sticky;
   top: 0;
   font-size: 11px;
