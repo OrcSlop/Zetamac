@@ -2,19 +2,23 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 
 import { HistoryScreen } from './screens/HistoryScreen';
+import {SessionSpeedChart} from './components/SessionSpeedChart.jsx'
+
+
 import { ResultsTable } from './components/ResultsTable';
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 
 const App = () => {
-  const [gameState, setGameState] = useState('menu'); // menu | playing | result | history
+  const [gameState, setGameState] = useState('menu'); // menu | playing | result
+  const [view, setView] = useState('app'); // app | history | sessionChart
 
   const [settings, setSettings] = useState({
     add: true, addMin1: 2, addMax1: 100, addMin2: 2, addMax2: 100,
     sub: true,
     mul: true, mulMin1: 2, mulMax1: 12, mulMin2: 2, mulMax2: 100,
     div: true,
-    duration: 120,
+    duration: 2,
     autosave: true
   });
 
@@ -165,6 +169,7 @@ const App = () => {
     });
     return csvString;
   };
+  
 
   const copyData = () => {
     if (csvOutputRef.current) {
@@ -196,12 +201,27 @@ const App = () => {
     }
   };
 
-  const resetGame = () => setGameState('menu');
+  const resetGame = () => {
+    setView('app');
+    setGameState('menu');
+  };
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
-  if (gameState === 'history') {
-    return <HistoryScreen onBack={resetGame} />;
+  if (view === 'history') {
+    return <HistoryScreen onBack={() => setView('app')} />;
+  }
+
+  if (view === 'sessionChart') {
+    return (
+      <div id="session-chart-screen">
+        <div className="history-header">
+          <button className="back-btn" onClick={() => setView('app')}>← Back</button>
+          <h2>Session Speed Chart</h2>
+        </div>
+        <SessionSpeedChart rows={problemLog} />
+      </div>
+    );
   }
 
   return (
@@ -270,7 +290,7 @@ const App = () => {
 
           <div className="menu-footer-btns">
             {window.electronAPI?.listCSVs && (
-              <button id="history-btn" onClick={() => setGameState('history')}>View History</button>
+              <button id="history-btn" onClick={() => setView('history')}>View History</button>
             )}
             <button id="start-btn" onClick={startGame}>Start</button>
           </div>
@@ -324,6 +344,11 @@ const App = () => {
             <button id="copy-csv-btn" onClick={copyData}>{copyText}</button>
             <button id="download-csv-btn" onClick={downloadCSV}>Download .CSV</button>
             <button id="play-again-btn" onClick={resetGame}>Play Again</button>
+          {/* </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}> */}
+            {/* <button onClick={() => setView('app')}>Back to App</button> */}
+            <button onClick={() => setView('history')}>History</button>
+            <button onClick={() => setView('sessionChart')}>Session Speed Chart</button>
           </div>
         </div>
       )}

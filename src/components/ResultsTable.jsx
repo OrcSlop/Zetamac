@@ -1,4 +1,7 @@
 import React from 'react';
+import App from '../App.jsx'
+ import {HistoryScreen} from '../screens/HistoryScreen.jsx'
+import {SessionSpeedChart} from './SessionSpeedChart.jsx'
 
 export function ResultsTable({ rows }) {
   if (rows.length === 0) return null;
@@ -67,5 +70,21 @@ export function ResultsTable({ rows }) {
         </table>
       </div>
     </div>
+    
   );
+        if (view === 'app') return <App />;
+  if (view === 'history') return <HistoryScreen />;
+  if (view === 'sessionChart') return <SessionSpeedChart />;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <button onClick={() => setView('app')}>Back to App</button>
+        <button onClick={() => setView('history')}>History</button>
+        <button onClick={() => setView('sessionChart')}>Session Speed Chart</button>
+      </div>
+      {tableView}
+    </div>
+  );
+
 }
