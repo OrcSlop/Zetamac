@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 
 export function SessionSpeedChart({ rows }) {
-  const [showRaw, setShowRaw] = useState(true);
-  const [showDynamicAvg, setShowDynamicAvg] = useState(false);
-  const [showAvg10, setShowAvg10] = useState(true);
+  const [showRaw, setShowRaw] = useState(false);
+  const [showAvg3, setShowAvg3] = useState(false);
+  const [showAvg10, setShowAvg10] = useState(false);
   const [showAvg100, setShowAvg100] = useState(false);
+  const [showAvg1000, setShowAvg1000] = useState(false);
   const [hovered, setHovered] = useState(null);
 
   if (!rows || rows.length === 0) return null;
@@ -12,9 +13,10 @@ export function SessionSpeedChart({ rows }) {
   const times = rows.map(r => r.time);
   const n = times.length;
 
-  const dynamicAvg = useMemo(() => {
+  const avg3 = useMemo(() => {
     return times.map((_, i) => {
-      const slice = times.slice(0, i + 1);
+      const start = Math.max(0, i - 2);
+      const slice = times.slice(start, i + 1);
       return slice.reduce((a, b) => a + b, 0) / slice.length;
     });
   }, [times]);
@@ -35,6 +37,14 @@ export function SessionSpeedChart({ rows }) {
     });
   }, [times]);
 
+  const avg1000 = useMemo(() => {
+    return times.map((_, i) => {
+      const start = Math.max(0, i - 999);
+      const slice = times.slice(start, i + 1);
+      return slice.reduce((a, b) => a + b, 0) / slice.length;
+    });
+  }, [times]);
+
   // Chart dimensions
   const W = 580, H = 220;
   const PAD = { top: 20, right: 20, bottom: 30, left: 44 };
@@ -44,9 +54,10 @@ export function SessionSpeedChart({ rows }) {
   // Determine Y scale
   let allVisibleValues = [];
   if (showRaw) allVisibleValues.push(...times);
-  if (showDynamicAvg) allVisibleValues.push(...dynamicAvg);
+  if (showAvg3) allVisibleValues.push(...avg3);
   if (showAvg10) allVisibleValues.push(...avg10);
   if (showAvg100) allVisibleValues.push(...avg100);
+  if (showAvg1000) allVisibleValues.push(...avg1000);
 
   if (allVisibleValues.length === 0) allVisibleValues = [0, 1]; // fallback
 
@@ -58,9 +69,10 @@ export function SessionSpeedChart({ rows }) {
 
   // Polyline points
   const rawPts = times.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
-  const dynamicAvgPts = dynamicAvg.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
+  const avg3Pts = avg3.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
   const avg10Pts = avg10.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
   const avg100Pts = avg100.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
+  const avg1000Pts = avg1000.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
 
   // Y grid lines
   const gridCount = 4;
@@ -77,8 +89,8 @@ export function SessionSpeedChart({ rows }) {
           Raw Data
         </label>
         <label className="toggle-label" style={{ color: '#2a9d3f' }}>
-          <input type="checkbox" checked={showDynamicAvg} onChange={e => setShowDynamicAvg(e.target.checked)} />
-          Dynamic Avg
+          <input type="checkbox" checked={showAvg3} onChange={e => setShowAvg3(e.target.checked)} />
+          3-Avg
         </label>
         <label className="toggle-label" style={{ color: '#0000ee' }}>
           <input type="checkbox" checked={showAvg10} onChange={e => setShowAvg10(e.target.checked)} />
@@ -87,6 +99,10 @@ export function SessionSpeedChart({ rows }) {
         <label className="toggle-label" style={{ color: '#8e44ad' }}>
           <input type="checkbox" checked={showAvg100} onChange={e => setShowAvg100(e.target.checked)} />
           100-Avg
+        </label>
+        <label className="toggle-label" style={{ color: '#e67e22' }}>
+          <input type="checkbox" checked={showAvg1000} onChange={e => setShowAvg1000(e.target.checked)} />
+          1000-Avg
         </label>
       </div>
 
@@ -106,9 +122,10 @@ export function SessionSpeedChart({ rows }) {
 
         {/* Lines */}
         {showRaw && <polyline points={rawPts} fill="none" stroke="#ccc" strokeWidth="1.5" strokeLinejoin="round" />}
-        {showDynamicAvg && <polyline points={dynamicAvgPts} fill="none" stroke="#2a9d3f" strokeWidth="2" strokeLinejoin="round" />}
+        {showAvg3 && <polyline points={avg3Pts} fill="none" stroke="#2a9d3f" strokeWidth="2" strokeLinejoin="round" />}
         {showAvg10 && <polyline points={avg10Pts} fill="none" stroke="#0000ee" strokeWidth="2" strokeLinejoin="round" />}
         {showAvg100 && <polyline points={avg100Pts} fill="none" stroke="#8e44ad" strokeWidth="2" strokeLinejoin="round" />}
+        {showAvg1000 && <polyline points={avg1000Pts} fill="none" stroke="#e67e22" strokeWidth="2" strokeLinejoin="round" />}
 
         {/* Interactive dots (we'll just use invisible rectangles or voronoi, but simple columns are easier) */}
         {times.map((_, i) => (
@@ -142,9 +159,10 @@ export function SessionSpeedChart({ rows }) {
           // Find y for the tooltip - pick the highest active line
           let activeVals = [];
           if (showRaw) activeVals.push(times[i]);
-          if (showDynamicAvg) activeVals.push(dynamicAvg[i]);
+          if (showAvg3) activeVals.push(avg3[i]);
           if (showAvg10) activeVals.push(avg10[i]);
           if (showAvg100) activeVals.push(avg100[i]);
+          if (showAvg1000) activeVals.push(avg1000[i]);
           const topVal = activeVals.length > 0 ? Math.max(...activeVals) : 0;
           const cy = yOf(topVal);
 
@@ -154,7 +172,7 @@ export function SessionSpeedChart({ rows }) {
           return (
             <g>
               <line x1={cx} y1={PAD.top} x2={cx} y2={PAD.top + iH} stroke="#999" strokeWidth="1" strokeDasharray="4" />
-              <rect x={bx} y={by} width="110" height={showRaw + showDynamicAvg + showAvg10 + showAvg100 > 1 ? (36 + 14 * (showRaw + showDynamicAvg + showAvg10 + showAvg100)) : 50}
+              <rect x={bx} y={by} width="110" height={showRaw + showAvg3 + showAvg10 + showAvg100 + showAvg1000 > 1 ? (36 + 14 * (showRaw + showAvg3 + showAvg10 + showAvg100 + showAvg1000)) : 50}
                 rx="3" fill="#fff" stroke="#ccc" strokeWidth="1" />
               <text x={bx + 8} y={by + 14} fontSize="10" fontWeight="bold" fill="#000">
                 Q: {i + 1}
@@ -164,19 +182,24 @@ export function SessionSpeedChart({ rows }) {
                   Time: {times[i].toFixed(2)}s
                 </text>
               )}
-              {showDynamicAvg && (
+              {showAvg3 && (
                 <text x={bx + 8} y={by + (showRaw ? 42 : 28)} fontSize="10" fill="#2a9d3f">
-                  Dyn-Avg: {dynamicAvg[i].toFixed(2)}s
+                  3-Avg: {avg3[i].toFixed(2)}s
                 </text>
               )}
               {showAvg10 && (
-                <text x={bx + 8} y={by + (showRaw ? (showDynamicAvg ? 56 : 42) : (showDynamicAvg ? 42 : 28))} fontSize="10" fill="#0000ee">
+                <text x={bx + 8} y={by + (showRaw ? (showAvg3 ? 56 : 42) : (showAvg3 ? 42 : 28))} fontSize="10" fill="#0000ee">
                   10-Avg: {avg10[i].toFixed(2)}s
                 </text>
               )}
               {showAvg100 && (
-                <text x={bx + 8} y={by + (showRaw ? (showDynamicAvg ? (showAvg10 ? 70 : 56) : (showAvg10 ? 56 : 42)) : (showDynamicAvg ? (showAvg10 ? 56 : 42) : (showAvg10 ? 42 : 28)))} fontSize="10" fill="#8e44ad">
+                <text x={bx + 8} y={by + (showRaw ? (showAvg3 ? (showAvg10 ? 70 : 56) : (showAvg10 ? 56 : 42)) : (showAvg3 ? (showAvg10 ? 56 : 42) : (showAvg10 ? 42 : 28)))} fontSize="10" fill="#8e44ad">
                   100-Avg: {avg100[i].toFixed(2)}s
+                </text>
+              )}
+              {showAvg1000 && (
+                <text x={bx + 8} y={by + (showRaw ? (showAvg3 ? (showAvg10 ? (showAvg100 ? 84 : 70) : (showAvg100 ? 70 : 56)) : (showAvg10 ? (showAvg100 ? 70 : 56) : (showAvg100 ? 56 : 42))) : (showAvg3 ? (showAvg10 ? (showAvg100 ? 70 : 56) : (showAvg100 ? 56 : 42)) : (showAvg10 ? (showAvg100 ? 56 : 42) : (showAvg100 ? 42 : 28))))} fontSize="10" fill="#e67e22">
+                  1000-Avg: {avg1000[i].toFixed(2)}s
                 </text>
               )}
             </g>

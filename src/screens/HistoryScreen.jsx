@@ -113,7 +113,7 @@ export function HistoryScreen({ onBack }) {
               <>
                 <div className="detail-title">All-Time Statistics</div>
                 <div className="detail-meta">
-                  Total Questions: <strong>{score}</strong> &nbsp;|&nbsp; Lifetime Avg: <strong>{avg}s</strong>
+                  Total Sessions: <strong>{allSessions.length}</strong> &nbsp;|&nbsp; Total Questions: <strong>{score}</strong> &nbsp;|&nbsp; Lifetime Avg: <strong>{avg}s</strong>
                 </div>
                 <SessionSpeedChart rows={displayRows} />
                 <AllTimeStats sessions={allSessions} onSelectSession={setSelected} />
