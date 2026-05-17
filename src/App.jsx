@@ -12,13 +12,14 @@ import { ResultsTable } from './components/ResultsTable';
 const App = () => {
   const [gameState, setGameState] = useState('menu'); // menu | playing | result
   const [view, setView] = useState('app'); // app | history | sessionChart
+  const [roomSeed, setRoomSeed] = useState('');
 
   const [settings, setSettings] = useState({
     add: true, addMin1: 2, addMax1: 100, addMin2: 2, addMax2: 100,
     sub: true,
     mul: true, mulMin1: 2, mulMax1: 12, mulMin2: 2, mulMax2: 100,
     div: true,
-    duration: 2,
+    duration: 120,
     autosave: true
   });
 
@@ -32,6 +33,7 @@ const App = () => {
 
   const timerRef = useRef(null);
   const problemStartTimeRef = useRef(0);
+  const randomStreamRef = useRef(null);
   const inputRef = useRef(null);
   const csvOutputRef = useRef(null);
 
@@ -41,6 +43,19 @@ const App = () => {
       ...prev,
       [id]: type === 'checkbox' ? checked : parseInt(value) || 0
     }));
+  };
+  const createRandomStream = (seedString) => {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < seedString.length; i++) {
+      h = Math.imul(h ^ seedString.charCodeAt(i), 16777619);
+    }
+    
+    return function() {
+      let t = h += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
   };
 
   const generateProblem = useCallback(() => {
@@ -52,28 +67,30 @@ const App = () => {
 
     if (operations.length === 0) return false;
 
-    const op = operations[Math.floor(Math.random() * operations.length)];
+    const getRandom = randomStreamRef.current || Math.random;
+
+    const op = operations[Math.floor(getRandom() * operations.length)];
     let probString = '';
     let ans = 0;
 
     if (op === 'add') {
-      const a = Math.floor(Math.random() * (settings.addMax1 - settings.addMin1 + 1)) + settings.addMin1;
-      const b = Math.floor(Math.random() * (settings.addMax2 - settings.addMin2 + 1)) + settings.addMin2;
+      const a = Math.floor(getRandom() * (settings.addMax1 - settings.addMin1 + 1)) + settings.addMin1;
+      const b = Math.floor(getRandom() * (settings.addMax2 - settings.addMin2 + 1)) + settings.addMin2;
       probString = `${a} + ${b}`;
       ans = a + b;
     } else if (op === 'sub') {
-      const a = Math.floor(Math.random() * (settings.addMax1 - settings.addMin1 + 1)) + settings.addMin1;
-      const b = Math.floor(Math.random() * (settings.addMax2 - settings.addMin2 + 1)) + settings.addMin2;
+      const a = Math.floor(getRandom() * (settings.addMax1 - settings.addMin1 + 1)) + settings.addMin1;
+      const b = Math.floor(getRandom() * (settings.addMax2 - settings.addMin2 + 1)) + settings.addMin2;
       probString = `${a + b} - ${a}`;
       ans = b;
     } else if (op === 'mul') {
-      const a = Math.floor(Math.random() * (settings.mulMax1 - settings.mulMin1 + 1)) + settings.mulMin1;
-      const b = Math.floor(Math.random() * (settings.mulMax2 - settings.mulMin2 + 1)) + settings.mulMin2;
+      const a = Math.floor(getRandom() * (settings.mulMax1 - settings.mulMin1 + 1)) + settings.mulMin1;
+      const b = Math.floor(getRandom() * (settings.mulMax2 - settings.mulMin2 + 1)) + settings.mulMin2;
       probString = `${a} * ${b}`;
       ans = a * b;
     } else if (op === 'div') {
-      const a = Math.floor(Math.random() * (settings.mulMax1 - settings.mulMin1 + 1)) + settings.mulMin1;
-      const b = Math.floor(Math.random() * (settings.mulMax2 - settings.mulMin2 + 1)) + settings.mulMin2;
+      const a = Math.floor(getRandom() * (settings.mulMax1 - settings.mulMin1 + 1)) + settings.mulMin1;
+      const b = Math.floor(getRandom() * (settings.mulMax2 - settings.mulMin2 + 1)) + settings.mulMin2;
       probString = `${a * b} / ${a}`;
       ans = b;
     }
@@ -101,6 +118,11 @@ const App = () => {
     setProblemLog([]);
     setInputValue('');
     setCopyText('Copy TSV');
+
+
+    const activeSeed = roomSeed.trim() || Math.random().toString(36).substring(2);
+    randomStreamRef.current = createRandomStream(activeSeed);
+
 
     if (generateProblem()) {
       setGameState('playing');
@@ -282,6 +304,21 @@ const App = () => {
           </div>
 
           <div className="divider" />
+
+
+          <div className="room-seed-group" style={{ margin: '15px 0' }}>
+            <label htmlFor="roomSeed" className="option-text" style={{ display: 'block', marginBottom: '5px' }}>
+              <strong>Seed:</strong>
+            </label>
+            <input 
+              type="text" 
+              id="roomSeed" 
+              placeholder="e.g., MATRIX-99" 
+              value={roomSeed} 
+              onChange={(e) => setRoomSeed(e.target.value)} 
+              style={{ padding: '8px', width: '100%', boxSizing: 'border-box', borderRadius: '4px', border: '1px solid #ccc' }}
+            />
+          </div>
 
           <div className="save-group">
             <input type="checkbox" id="autosave" checked={settings.autosave} onChange={handleSettingChange} />
