@@ -25,9 +25,30 @@ export function ProgressChart({ sessions }) {
   // Build SVG polyline points string
   const pts = sessions.map((_, i) => `${xOf(i)},${yOf(scores[i])}`).join(' ');
 
-  // Trend stats
-  const first = scores[0], last = scores[n - 1];
-  const trend = n > 1 ? ((last - first) / (first || 1) * 100).toFixed(0) : null;
+  // Trend stats & Line of Best Fit (Linear Regression)
+  let trendPercent = null;
+  let slope = 0;
+  let intercept = 0;
+  if (n > 1) {
+    let sumX = 0;
+    let sumY = 0;
+    let sumXY = 0;
+    let sumXX = 0;
+    for (let i = 0; i < n; i++) {
+      sumX += i;
+      sumY += scores[i];
+      sumXY += i * scores[i];
+      sumXX += i * i;
+    }
+    const denominator = n * sumXX - sumX * sumX;
+    slope = denominator === 0 ? 0 : (n * sumXY - sumX * sumY) / denominator;
+    intercept = (sumY - slope * sumX) / n;
+
+    const yStart = intercept;
+    const yEnd = slope * (n - 1) + intercept;
+    trendPercent = Math.round(((yEnd - yStart) / (yStart || 1)) * 100);
+  }
+
   const bestScore  = Math.max(...scores);
   const totalAvg   = (avgs.reduce((a, b) => a + b, 0) / avgs.length).toFixed(2);
 
@@ -58,11 +79,14 @@ export function ProgressChart({ sessions }) {
           <span className="stat-label">Avg Response</span>
           <span className="stat-value">{totalAvg}s</span>
         </div>
-        {trend !== null && (
-          <div className="stat-chip">
-            <span className="stat-label">Trend</span>
-            <span className="stat-value" style={{ color: trend >= 0 ? '#2a9d3f' : '#c0392b' }}>
-              {trend >= 0 ? '▲' : '▼'} {Math.abs(trend)}%
+        {trendPercent !== null && (
+          <div className="stat-chip" title="Calculated from the linear regression line of best fit">
+            <span className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff9800' }} />
+              Trend
+            </span>
+            <span className="stat-value" style={{ color: trendPercent >= 0 ? '#2a9d3f' : '#c0392b' }}>
+              {trendPercent >= 0 ? '▲' : '▼'} {Math.abs(trendPercent)}%
             </span>
           </div>
         )}
@@ -92,6 +116,20 @@ export function ProgressChart({ sessions }) {
 
         {/* Score line */}
         <polyline points={pts} fill="none" stroke="#0000ee" strokeWidth="2" strokeLinejoin="round" />
+
+        {/* Line of best fit (Regression Line) */}
+        {n > 1 && (
+          <line
+            x1={xOf(0)}
+            y1={yOf(intercept)}
+            x2={xOf(n - 1)}
+            y2={yOf(slope * (n - 1) + intercept)}
+            stroke="#ff9800"
+            strokeWidth="2"
+            strokeDasharray="4,4"
+            opacity="0.85"
+          />
+        )}
 
         {/* Data dots */}
         {sessions.map((s, i) => (
