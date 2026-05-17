@@ -10,7 +10,8 @@ const waitOn = require('wait-on');
 const VITE_URL = 'http://127.0.0.1:5173';
 
 console.log('[dev] Starting Vite...');
-const vite = spawn('npx', ['vite', '--port', '5173', '--strictPort'], {
+const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+const vite = spawn(npxCmd, ['vite', '--port', '5173', '--strictPort'], {
     stdio: 'inherit',
     shell: true,
 });
@@ -28,7 +29,7 @@ waitOn({ resources: [VITE_URL], timeout: 30000, interval: 200 })
         console.log(`[dev] Launching Electron with URL: ${VITE_URL}`);
         console.log(`[dev] (Note: main.cjs will force 127.0.0.1 if it receives localhost)`);
 
-        const electron = spawn('npx', ['electron', '.'], {
+        const electron = spawn(npxCmd, ['electron', '.'], {
             stdio: 'inherit',
             shell: true,
             env: { ...process.env, ELECTRON_START_URL: VITE_URL },

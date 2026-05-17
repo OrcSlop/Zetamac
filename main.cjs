@@ -19,7 +19,7 @@ function createWindow() {
     });
 
     // Tip: Uncomment the line below if you ever need to see the console for errors!
-    win.webContents.openDevTools();
+    // win.webContents.openDevTools();
 
     const isDev = process.env.ELECTRON_START_URL || !require('fs').existsSync(path.join(__dirname, 'dist', 'index.html'));
     console.log('[main] isDev:', !!isDev);
