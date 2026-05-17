@@ -7,7 +7,7 @@
 const { spawn } = require('child_process');
 const waitOn = require('wait-on');
 
-const VITE_URL = 'http://localhost:5173';
+const VITE_URL = 'http://127.0.0.1:5173';
 
 console.log('[dev] Starting Vite...');
 const vite = spawn('npx', ['vite', '--port', '5173', '--strictPort'], {
@@ -22,8 +22,11 @@ vite.on('error', (err) => {
 
 // Wait for Vite's HTTP server to be ready
 waitOn({ resources: [VITE_URL], timeout: 30000, interval: 200 })
-    .then(() => {
-        console.log('[dev] Vite is ready. Launching Electron...');
+    .then(async () => {
+        console.log(`[dev] Vite is ready. Waiting 1s for stability...`);
+        await new Promise(r => setTimeout(r, 1000));
+        console.log(`[dev] Launching Electron with URL: ${VITE_URL}`);
+        console.log(`[dev] (Note: main.cjs will force 127.0.0.1 if it receives localhost)`);
 
         const electron = spawn('npx', ['electron', '.'], {
             stdio: 'inherit',

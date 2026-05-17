@@ -3,6 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
+console.log('[main] Electron main process starting...');
+console.log('[main] __dirname:', __dirname);
+
 function createWindow() {
     const win = new BrowserWindow({
         width: 900,
@@ -16,12 +19,19 @@ function createWindow() {
     });
 
     // Tip: Uncomment the line below if you ever need to see the console for errors!
-    // win.webContents.openDevTools();
+    win.webContents.openDevTools();
 
     const isDev = process.env.ELECTRON_START_URL || !require('fs').existsSync(path.join(__dirname, 'dist', 'index.html'));
-    const startUrl = isDev
-        ? (process.env.ELECTRON_START_URL || 'http://localhost:5173')
+    console.log('[main] isDev:', !!isDev);
+    let startUrl = isDev
+        ? (process.env.ELECTRON_START_URL || 'http://127.0.0.1:5173')
         : `file://${path.join(__dirname, './dist/index.html')}`;
+
+    if (isDev && startUrl.includes('localhost')) {
+        startUrl = startUrl.replace('localhost', '127.0.0.1');
+    }
+
+    console.log('[main] Loading URL:', startUrl);
     win.loadURL(startUrl);
 }
 
