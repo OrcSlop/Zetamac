@@ -49,6 +49,7 @@ export function ProgressChart({ sessions }) {
     trendPercent = Math.round(((yEnd - yStart) / (yStart || 1)) * 100);
   }
 
+  const last = scores[n - 1];
   const bestScore  = Math.max(...scores);
   const totalAvg   = (avgs.reduce((a, b) => a + b, 0) / avgs.length).toFixed(2);
 
