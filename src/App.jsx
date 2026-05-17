@@ -3,6 +3,12 @@ import './App.css';
 
 import { HistoryScreen } from './screens/HistoryScreen';
 import {SessionSpeedChart} from './components/SessionSpeedChart.jsx'
+import {ProgressChart} from './components/ProgressChart.jsx'
+import { AllTimeStats } from './components/AllTimeStats';
+import { LeaderboardTable } from './components/LeaderboardTable';
+import { OpBreakdown } from './components/OpBreakdown';
+import { SessionAdvancedStats } from './components/SessionAdvancedStats';
+import { PPMChart } from './components/PPMChart';
 import { ResultsTable } from './components/ResultsTable';
 import { parseCSV } from './utils/helpers';
 
@@ -21,6 +27,10 @@ const App = () => {
     duration: 120,
     autosave: true
   });
+  const [darkMode, setDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme === 'dark';
+  });
 
   const [score, setScore] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(120);
@@ -35,6 +45,17 @@ const App = () => {
   const randomStreamRef = useRef(null);
   const inputRef = useRef(null);
   const csvOutputRef = useRef(null);
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add('dark-mode');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.body.classList.remove('dark-mode');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
+
+  const toggleTheme = () => setDarkMode(prev => !prev);
 
   // All-time stats state loaded from files
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -475,11 +496,27 @@ const App = () => {
   };
   
 
-  const copyData = () => {
+  const copyData = async () => {
+    const csvText = generateTSVContent();
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(csvText);
+        setCopyText('Copied!');
+        return;
+      } catch (e) {
+        // fallback to textarea if clipboard API fails
+      }
+    }
+
     if (csvOutputRef.current) {
       csvOutputRef.current.select();
-      document.execCommand('copy');
-      setCopyText('Copied!');
+      try {
+        document.execCommand('copy');
+        setCopyText('Copied!');
+      } catch (e) {
+        console.warn('Copy fallback failed', e);
+      }
     }
   };
 
@@ -527,9 +564,77 @@ const App = () => {
       </div>
     );
   }
+ 
+  if (view === 'progressChart') {
+    return (
+      <div id="progress-chart-screen">
+        <div className="history-header">
+          <button className="back-btn" onClick={() => setView('app')}>← Back</button>
+          <h2>Progress Chart</h2>
+        </div>
+        <ProgressChart sessions={[]} />
+      </div>
+    );
+  }
+
+  if (view === 'allTimeStats') {
+    return (
+      <div id="alltime-stats-screen">
+        <div className="history-header">
+          <button className="back-btn" onClick={() => setView('app')}>← Back</button>
+          <h2>All-Time Stats</h2>
+        </div>
+        <AllTimeStats sessions={[]} onSelectSession={() => {}} />
+      </div>
+    );
+  }
+
+  if (view === 'leaderboard') {
+    return (
+      <div id="leaderboard-screen">
+        <div className="history-header">
+          <button className="back-btn" onClick={() => setView('app')}>← Back</button>
+          <h2>Leaderboard</h2>
+        </div>
+        <LeaderboardTable allRows={problemLog} />
+      </div>
+    );
+  }
+
+  if (view === 'opBreakdown') {
+    return (
+      <div id="opbreakdown-screen">
+        <div className="history-header">
+          <button className="back-btn" onClick={() => setView('app')}>← Back</button>
+          <h2>Operation Breakdown</h2>
+        </div>
+        <OpBreakdown allRows={problemLog} />
+      </div>
+    );
+  }
+
+  if (view === 'sessionAdvanced') {
+    return (
+      <div id="session-advanced-screen">
+        <div className="history-header">
+          <button className="back-btn" onClick={() => setView('app')}>← Back</button>
+          <h2>Advanced Session Stats</h2>
+        </div>
+        <SessionAdvancedStats rows={problemLog} />
+      </div>
+    );
+  }
 
   return (
     <>
+      <button 
+        className="corner-theme-toggle" 
+        onClick={toggleTheme}
+        title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        aria-label="Toggle Theme"
+      >
+        {darkMode ? '☀️' : '🌙'}
+      </button>
       {/* ── Menu ── */}
       {gameState === 'menu' && (
         <div id="menu-container">
@@ -635,8 +740,11 @@ const App = () => {
             <button id="practice-btn" onClick={startPractice}>Infinite Practice</button>
             <button id="start-btn" onClick={startGame}>Start</button>
           </div>
+          
         </div>
+        
       )}
+
 
       {/* ── Game ── */}
       {gameState === 'playing' && (
@@ -803,6 +911,17 @@ const App = () => {
             {/* Interactive data table */}
             <ResultsTable rows={problemLog} />
 
+            {/* Session speed chart */}
+            {/* <div className="result-chart-wrap">
+              <h3>Session Speed Chart</h3>
+              <SessionSpeedChart rows={problemLog} />
+            </div> */}
+
+            <div className="result-chart-wrap">
+              <h3>PPM Chart</h3>
+              <PPMChart rows={problemLog} />
+            </div>
+
             {/* Collapsible raw data (hidden textarea for copy) */}
             <details className="raw-data-details">
               <summary>Raw TSV (paste into Sheets)</summary>
@@ -820,17 +939,19 @@ const App = () => {
               <button id="copy-csv-btn" onClick={copyData}>{copyText}</button>
               <button id="download-csv-btn" onClick={downloadCSV}>Download .CSV</button>
               <button id="play-again-btn" onClick={resetGame}>Play Again</button>
-            {/* </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}> */}
-              {/* <button onClick={() => setView('app')}>Back to App</button> */}
               <button onClick={() => setView('history')}>History</button>
               <button onClick={() => setView('sessionChart')}>Session Speed Chart</button>
+              <button onClick={() => setView('progressChart')}>Progress Chart</button>
+              <button onClick={() => setView('allTimeStats')}>All-Time Stats</button>
+              <button onClick={() => setView('leaderboard')}>Leaderboard</button>
+              <button onClick={() => setView('opBreakdown')}>Operation Breakdown</button>
+              <button onClick={() => setView('sessionAdvanced')}>Advanced Stats</button>
             </div>
           </div>
         )
-      )}
-    </>
-  );
+      )
+    }
+    </>);
 };
 
 export default App;
