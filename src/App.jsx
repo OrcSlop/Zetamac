@@ -37,7 +37,6 @@ const App = () => {
   const csvOutputRef = useRef(null);
 
   // All-time stats state loaded from files
-  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyStats, setHistoryStats] = useState({
     globalAverageTime: null,
     longestQuestions: [],
@@ -54,6 +53,7 @@ const App = () => {
   const [practiceToast, setPracticeToast] = useState(null);
   const [practiceStartTime, setPracticeStartTime] = useState(null);
   const [practiceTotalDuration, setPracticeTotalDuration] = useState(0);
+  const [isZenMode, setIsZenMode] = useState(false);
 
   const practiceTimerIntervalRef = useRef(null);
   const toastTimeoutRef = useRef(null);
@@ -194,7 +194,7 @@ const App = () => {
 
   const startPractice = () => {
     let target = 3.0;
-    let queue = [];
+    let queue;
     
     if (historyStats.longestQuestions.length > 0) {
       target = historyStats.globalAverageTime;
@@ -249,8 +249,9 @@ const App = () => {
     setGameState('result');
   }, [practiceStartTime]);
 
-  const startGame = () => {
+  const startGame = (zen = false) => {
     setIsPracticeMode(false);
+    setIsZenMode(zen);
     clearInterval(practiceTimerIntervalRef.current);
     const operations = [];
     if (settings.add) operations.push('add');
@@ -264,7 +265,7 @@ const App = () => {
     }
 
     setScore(0);
-    setTimeRemaining(settings.duration);
+    setTimeRemaining(zen ? 0 : settings.duration);
     setProblemLog([]);
     setInputValue('');
     setCopyText('Copy TSV');
@@ -276,16 +277,18 @@ const App = () => {
 
     if (generateProblem()) {
       setGameState('playing');
-      const endTime = Date.now() + settings.duration * 1000;
+      if (!zen) {
+        const endTime = Date.now() + settings.duration * 1000;
 
-      timerRef.current = setInterval(() => {
-        const remaining = Math.ceil((endTime - Date.now()) / 1000);
-        if (remaining <= 0) {
-          endGame();
-        } else {
-          setTimeRemaining(remaining);
-        }
-      }, 100);
+        timerRef.current = setInterval(() => {
+          const remaining = Math.ceil((endTime - Date.now()) / 1000);
+          if (remaining <= 0) {
+            endGame();
+          } else {
+            setTimeRemaining(remaining);
+          }
+        }, 100);
+      }
     }
   };
 
@@ -298,7 +301,6 @@ const App = () => {
   const loadHistoryStats = useCallback(async () => {
     try {
       if (!window.electronAPI?.listCSVs) {
-        setHistoryLoaded(true);
         return;
       }
       const list = await window.electronAPI.listCSVs();
@@ -313,7 +315,6 @@ const App = () => {
       }
       
       if (rowsAccum.length === 0) {
-        setHistoryLoaded(true);
         return;
       }
       
@@ -346,10 +347,8 @@ const App = () => {
         longestQuestions: longest,
         totalQuestionsSolved: rowsAccum.length
       });
-      setHistoryLoaded(true);
     } catch (e) {
       console.error("Error loading history stats:", e);
-      setHistoryLoaded(true);
     }
   }, []);
 
@@ -368,11 +367,11 @@ const App = () => {
   useEffect(() => {
     if (gameState === 'playing' && inputRef.current) {
       inputRef.current.focus();
-    } else if (gameState === 'result' && settings.autosave) {
+    } else if (gameState === 'result' && settings.autosave && !isPracticeMode && !isZenMode) {
       downloadCSV();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState, settings.autosave]);
+  }, [gameState, settings.autosave, isPracticeMode, isZenMode]);
 
   const handleInputChange = (e) => {
     const val = e.target.value;
@@ -508,6 +507,8 @@ const App = () => {
   const resetGame = () => {
     setView('app');
     setGameState('menu');
+    setIsZenMode(false);
+    setIsPracticeMode(false);
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -585,27 +586,6 @@ const App = () => {
             </select>
           </div>
 
-          {/* Practice Recommendation Card */}
-          {historyLoaded && (
-            <div className="practice-recommendation-card">
-              {historyStats.longestQuestions.length > 0 ? (
-                <>
-                  <div className="card-header">📊 Practice Recommendation</div>
-                  <div className="card-body">
-                    You have <strong>{historyStats.longestQuestions.length}</strong> questions above your average time of <strong>{historyStats.globalAverageTime.toFixed(2)}s</strong>. Practice them now to get them under your average!
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="card-header">💡 Practice Mode Available</div>
-                  <div className="card-body">
-                    Solve some math in normal mode first to gather stats, or jump in with default challenging questions!
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
           <div className="divider" />
 
 
@@ -633,7 +613,8 @@ const App = () => {
               <button id="history-btn" onClick={() => setView('history')}>View History</button>
             )}
             <button id="practice-btn" onClick={startPractice}>Infinite Practice</button>
-            <button id="start-btn" onClick={startGame}>Start</button>
+            <button id="zen-btn" onClick={() => startGame(true)}>Zen Mode</button>
+            <button id="start-btn" onClick={() => startGame(false)}>Start</button>
           </div>
         </div>
       )}
@@ -653,6 +634,20 @@ const App = () => {
               <div className="hud-metric">
                 <span className="metric-label">Mastery Progress:</span>
                 <span className="metric-value">{masteredList.length} / {totalPracticeCount}</span>
+              </div>
+            </div>
+          ) : isZenMode ? (
+            <div className="practice-hud zen-hud">
+              <div className="hud-metric">
+                <span className="metric-label">Mode:</span>
+                <span className="metric-value">Zen Mode</span>
+              </div>
+              <div className="hud-metric">
+                <span className="metric-label">Score:</span>
+                <span className="metric-value">{score}</span>
+              </div>
+              <div className="hud-metric">
+                <button className="practice-exit-btn zen-exit-btn" onClick={endGame}>End Game</button>
               </div>
             </div>
           ) : (
@@ -797,34 +792,33 @@ const App = () => {
           </div>
         ) : (
           <div id="result-screen">
-            <h2>Time's Up!</h2>
+            <h2>{isZenMode ? 'Zen Session Complete' : "Time's Up!"}</h2>
             <p>Your score: <strong id="final-score">{score}</strong></p>
 
             {/* Interactive data table */}
             <ResultsTable rows={problemLog} />
 
             {/* Collapsible raw data (hidden textarea for copy) */}
-            <details className="raw-data-details">
-              <summary>Raw TSV (paste into Sheets)</summary>
-              <div className="csv-container">
-                <textarea
-                  id="csv-output"
-                  readOnly
-                  ref={csvOutputRef}
-                  value={generateTSVContent()}
-                />
-              </div>
-            </details>
+            {!isZenMode && (
+              <details className="raw-data-details">
+                <summary>Raw TSV (paste into Sheets)</summary>
+                <div className="csv-container">
+                  <textarea
+                    id="csv-output"
+                    readOnly
+                    ref={csvOutputRef}
+                    value={generateTSVContent()}
+                  />
+                </div>
+              </details>
+            )}
 
             <div className="action-buttons">
-              <button id="copy-csv-btn" onClick={copyData}>{copyText}</button>
-              <button id="download-csv-btn" onClick={downloadCSV}>Download .CSV</button>
+              {!isZenMode && <button id="copy-csv-btn" onClick={copyData}>{copyText}</button>}
+              {!isZenMode && <button id="download-csv-btn" onClick={downloadCSV}>Download .CSV</button>}
               <button id="play-again-btn" onClick={resetGame}>Play Again</button>
-            {/* </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}> */}
-              {/* <button onClick={() => setView('app')}>Back to App</button> */}
               <button onClick={() => setView('history')}>History</button>
-              <button onClick={() => setView('sessionChart')}>Session Speed Chart</button>
+              {!isZenMode && <button onClick={() => setView('sessionChart')}>Session Speed Chart</button>}
             </div>
           </div>
         )

@@ -6,6 +6,7 @@ import { LeaderboardTable } from '../components/LeaderboardTable';
 import { SessionSpeedChart } from '../components/SessionSpeedChart';
 import { SessionAdvancedStats } from '../components/SessionAdvancedStats';
 import { AllTimeStats } from '../components/AllTimeStats';
+import { AdvancedAnalytics } from '../components/AdvancedAnalytics';
 
 export function HistoryScreen({ onBack }) {
   const [files, setFiles]             = useState([]);
@@ -81,6 +82,8 @@ export function HistoryScreen({ onBack }) {
             onClick={() => setTab('progress')}>Progress</button>
           <button className={`tab-btn ${tab === 'leaderboard' ? 'active' : ''}`}
             onClick={() => setTab('leaderboard')}>Leaderboard</button>
+          <button className={`tab-btn ${tab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setTab('analytics')}>Analytics</button>
         </div>
         <button className="back-btn" onClick={onBack}>← Back</button>
       </div>
@@ -144,6 +147,12 @@ export function HistoryScreen({ onBack }) {
       {!loading && tab === 'leaderboard' && (
         <div className="progress-tab">
           <LeaderboardTable allRows={allRows} />
+        </div>
+      )}
+
+      {!loading && files.length > 0 && tab === 'analytics' && (
+        <div className="progress-tab">
+          <AdvancedAnalytics allSessions={allSessions} allRows={allRows} />
         </div>
       )}
     </div>
