@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 
-export function SessionSpeedChart({ rows }) {
+export function PPMChart({ rows }) {
   const [showRaw, setShowRaw] = useState(true);
-  const [showAvg3, setShowAvg3] = useState(true);
-  const [showAvg10, setShowAvg10] = useState(true);
+  const [showAvg3, setShowAvg3] = useState(false);
+  const [showAvg10, setShowAvg10] = useState(false);
   const [showAvg100, setShowAvg100] = useState(false);
   const [showAvg1000, setShowAvg1000] = useState(false);
   const [hovered, setHovered] = useState(null);
@@ -12,38 +12,46 @@ export function SessionSpeedChart({ rows }) {
 
   const times = rows.map(r => r.time);
   const n = times.length;
+  // Compute PPM (questions per minute) cumulatively
+  const ppmValues = useMemo(() => {
+    let totalSeconds = 0;
+    return times.map((sec, i) => {
+      totalSeconds += sec;
+      return totalSeconds > 0 ? 60 * (i + 1) / totalSeconds : 0;
+    });
+  }, [times]);
 
   const avg3 = useMemo(() => {
-    return times.map((_, i) => {
+    return ppmValues.map((_, i) => {
       const start = Math.max(0, i - 2);
-      const slice = times.slice(start, i + 1);
+      const slice = ppmValues.slice(start, i + 1);
       return slice.reduce((a, b) => a + b, 0) / slice.length;
     });
-  }, [times]);
+  }, [ppmValues]);
 
   const avg10 = useMemo(() => {
-    return times.map((_, i) => {
+    return ppmValues.map((_, i) => {
       const start = Math.max(0, i - 9);
-      const slice = times.slice(start, i + 1);
+      const slice = ppmValues.slice(start, i + 1);
       return slice.reduce((a, b) => a + b, 0) / slice.length;
     });
-  }, [times]);
+  }, [ppmValues]);
 
   const avg100 = useMemo(() => {
-    return times.map((_, i) => {
+    return ppmValues.map((_, i) => {
       const start = Math.max(0, i - 99);
-      const slice = times.slice(start, i + 1);
+      const slice = ppmValues.slice(start, i + 1);
       return slice.reduce((a, b) => a + b, 0) / slice.length;
     });
-  }, [times]);
+  }, [ppmValues]);
 
   const avg1000 = useMemo(() => {
-    return times.map((_, i) => {
+    return ppmValues.map((_, i) => {
       const start = Math.max(0, i - 999);
-      const slice = times.slice(start, i + 1);
+      const slice = ppmValues.slice(start, i + 1);
       return slice.reduce((a, b) => a + b, 0) / slice.length;
     });
-  }, [times]);
+  }, [ppmValues]);
 
   // Chart dimensions
   const W = 580, H = 220;
@@ -51,24 +59,24 @@ export function SessionSpeedChart({ rows }) {
   const iW = W - PAD.left - PAD.right;
   const iH = H - PAD.top - PAD.bottom;
 
-  // Determine Y scale
+  // Determine Y scale based on PPM values
   let allVisibleValues = [];
-  if (showRaw) allVisibleValues.push(...times);
+  if (showRaw) allVisibleValues.push(...ppmValues);
   if (showAvg3) allVisibleValues.push(...avg3);
   if (showAvg10) allVisibleValues.push(...avg10);
   if (showAvg100) allVisibleValues.push(...avg100);
   if (showAvg1000) allVisibleValues.push(...avg1000);
 
-  if (allVisibleValues.length === 0) allVisibleValues = [0, 1]; // fallback
+  if (allVisibleValues.length === 0) allVisibleValues = [0, 5]; // fallback
 
-  const minTime = Math.max(0, Math.min(...allVisibleValues) - 0.5);
-  const maxTime = Math.max(...allVisibleValues) + 0.5;
+  const minPpm = Math.max(0, Math.min(...allVisibleValues) - 2);
+  const maxPpm = Math.max(...allVisibleValues) + 2;
 
   const xOf = i => PAD.left + (n === 1 ? iW / 2 : (i / (n - 1)) * iW);
-  const yOf = v => PAD.top + iH - ((v - minTime) / (maxTime - minTime || 1)) * iH;
+  const yOf = v => PAD.top + iH - ((v - minPpm) / (maxPpm - minPpm || 1)) * iH;
 
-  // Polyline points
-  const rawPts = times.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
+  // Polyline points (PPM)
+  const rawPts = ppmValues.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
   const avg3Pts = avg3.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
   const avg10Pts = avg10.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
   const avg100Pts = avg100.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
@@ -77,8 +85,8 @@ export function SessionSpeedChart({ rows }) {
   // Y grid lines
   const gridCount = 4;
   const gridLines = Array.from({ length: gridCount + 1 }, (_, i) => {
-    const v = minTime + ((maxTime - minTime) / gridCount) * i;
-    return { y: yOf(v), label: v.toFixed(1) + 's' };
+    const v = minPpm + ((maxPpm - minPpm) / gridCount) * i;
+    return { y: yOf(v), label: `${v.toFixed(1)} ppm` };
   });
 
   return (
@@ -120,7 +128,7 @@ export function SessionSpeedChart({ rows }) {
           </g>
         ))}
 
-        {/* Lines */}
+        {/* Lines (PPM) */}
         {showRaw && <polyline points={rawPts} fill="none" stroke="#ccc" strokeWidth="1.5" strokeLinejoin="round" />}
         {showAvg3 && <polyline points={avg3Pts} fill="none" stroke="#2a9d3f" strokeWidth="2" strokeLinejoin="round" />}
         {showAvg10 && <polyline points={avg10Pts} fill="none" stroke="#0000ee" strokeWidth="2" strokeLinejoin="round" />}
@@ -128,7 +136,7 @@ export function SessionSpeedChart({ rows }) {
         {showAvg1000 && <polyline points={avg1000Pts} fill="none" stroke="#e67e22" strokeWidth="2" strokeLinejoin="round" />}
 
         {/* Interactive dots (we'll just use invisible rectangles or voronoi, but simple columns are easier) */}
-        {times.map((_, i) => (
+        {ppmValues.map((_, i) => (
           <rect
             key={i}
             x={xOf(i) - (iW / n) / 2}
@@ -142,7 +150,7 @@ export function SessionSpeedChart({ rows }) {
         ))}
 
         {/* X-axis labels (every Nth if crowded) */}
-        {times.map((_, i) => {
+        {ppmValues.map((_, i) => {
           const step = n > 20 ? Math.ceil(n / 10) : (n > 10 ? 2 : 1);
           if (i % step !== 0 && i !== n - 1 && i !== 0) return null;
           return (
@@ -156,9 +164,9 @@ export function SessionSpeedChart({ rows }) {
         {hovered !== null && (() => {
           const i = hovered;
           const cx = xOf(i);
-          // Find y for the tooltip - pick the highest active line
+          // Find y for the tooltip - pick the highest active PPM line
           let activeVals = [];
-          if (showRaw) activeVals.push(times[i]);
+          if (showRaw) activeVals.push(ppmValues[i]);
           if (showAvg3) activeVals.push(avg3[i]);
           if (showAvg10) activeVals.push(avg10[i]);
           if (showAvg100) activeVals.push(avg100[i]);
@@ -179,27 +187,27 @@ export function SessionSpeedChart({ rows }) {
               </text>
               {showRaw && (
                 <text x={bx + 8} y={by + 28} fontSize="10" fill="#888">
-                  Time: {times[i].toFixed(2)}s
+                  PPM: {ppmValues[i].toFixed(1)}
                 </text>
               )}
               {showAvg3 && (
                 <text x={bx + 8} y={by + (showRaw ? 42 : 28)} fontSize="10" fill="#2a9d3f">
-                  3-Avg: {avg3[i].toFixed(2)}s
+                  3-Avg: {avg3[i].toFixed(1)} ppm
                 </text>
               )}
               {showAvg10 && (
                 <text x={bx + 8} y={by + (showRaw ? (showAvg3 ? 56 : 42) : (showAvg3 ? 42 : 28))} fontSize="10" fill="#0000ee">
-                  10-Avg: {avg10[i].toFixed(2)}s
+                  10-Avg: {avg10[i].toFixed(1)} ppm
                 </text>
               )}
               {showAvg100 && (
                 <text x={bx + 8} y={by + (showRaw ? (showAvg3 ? (showAvg10 ? 70 : 56) : (showAvg10 ? 56 : 42)) : (showAvg3 ? (showAvg10 ? 56 : 42) : (showAvg10 ? 42 : 28)))} fontSize="10" fill="#8e44ad">
-                  100-Avg: {avg100[i].toFixed(2)}s
+                  100-Avg: {avg100[i].toFixed(1)} ppm
                 </text>
               )}
               {showAvg1000 && (
                 <text x={bx + 8} y={by + (showRaw ? (showAvg3 ? (showAvg10 ? (showAvg100 ? 84 : 70) : (showAvg100 ? 70 : 56)) : (showAvg10 ? (showAvg100 ? 70 : 56) : (showAvg100 ? 56 : 42))) : (showAvg3 ? (showAvg10 ? (showAvg100 ? 70 : 56) : (showAvg100 ? 56 : 42)) : (showAvg10 ? (showAvg100 ? 56 : 42) : (showAvg100 ? 42 : 28))))} fontSize="10" fill="#e67e22">
-                  1000-Avg: {avg1000[i].toFixed(2)}s
+                  1000-Avg: {avg1000[i].toFixed(1)} ppm
                 </text>
               )}
             </g>
